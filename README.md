@@ -1,9 +1,41 @@
-# FoodLog
+<p align="center"><img src="site/favicon.svg" width="72" height="72" alt=""></p>
 
-A mobile-first PWA for logging what you eat from a photo, invite-only, for you and the people you let in. Snap your plate (or a nutrition label, or just
-type what you ate), add an optional description such as *"2 patties ~150 g each, bun hollowed, 1 tbsp
-ketchup-mayo"*, and a vision model (OpenAI, Claude, Gemini or one you run yourself) returns a structured, per-item nutrition estimate. Review and edit it,
-save it, and track your day, week and trends on a dashboard.
+<h1 align="center">FoodLog</h1>
+
+<p align="center">
+  <b>Know what you eat. Own what you log.</b><br>
+  A free, open-source food tracker you host yourself: 13,331 foods built in, AI photo estimates with your own key
+  if you want them, and no subscription, ads or tracking.
+</p>
+
+<p align="center">
+  <a href="https://foodlog-demo.up.railway.app"><b>Try the live demo</b></a> ·
+  <a href="https://chrishalaby.github.io/foodlog/">Website</a> ·
+  <a href="#self-host-quick-start">Self-host in three commands</a> ·
+  <a href="https://github.com/Chrishalaby/foodlog/releases">Releases</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/Chrishalaby/foodlog/releases"><img src="https://img.shields.io/github/v/release/Chrishalaby/foodlog?color=4ade80" alt="Latest release"></a>
+  <a href="https://github.com/Chrishalaby/foodlog/actions/workflows/ci.yml"><img src="https://github.com/Chrishalaby/foodlog/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/Chrishalaby/foodlog?color=8b9cff" alt="License: AGPL-3.0"></a>
+  <a href="https://github.com/Chrishalaby/foodlog/pkgs/container/foodlog"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-5cb8ff" alt="Docker images for amd64 and arm64"></a>
+</p>
+
+<p align="center">
+  <img src="site/screens/today.jpg" width="190" alt="Today: calories and macros left for the day">
+  <img src="site/screens/search.jpg" width="190" alt="Search your own foods and the food database">
+  <img src="site/screens/portion.jpg" width="190" alt="Pick a portion and see the numbers change">
+  <img src="site/screens/weight.jpg" width="190" alt="Weight trend and measured daily burn">
+</p>
+
+## Features
+
+Log a meal by searching what you have eaten before, picking from the built-in food database, scanning a barcode, or
+snapping your plate (or a nutrition label, or just typing what you ate) for an AI estimate. Add a description such as
+*"2 patties ~150 g each, bun hollowed, 1 tbsp ketchup-mayo"* and a vision model (OpenAI, Claude, Gemini or one you run
+yourself) returns a structured, per-item nutrition estimate you review before saving. Then track your day, week and
+trends on a dashboard. Every server is its own: whoever installs it is the admin and invites the people they want.
 
 - **Three input modes:** food photo (+ optional description), nutrition-label photo (you enter grams or servings
   eaten and the app computes totals), or text only.
