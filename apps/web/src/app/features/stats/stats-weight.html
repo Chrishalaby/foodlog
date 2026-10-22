@@ -1,0 +1,163 @@
+<app-segmented-control
+  ariaLabel="Weight range"
+  [options]="rangeOptions"
+  [value]="range()"
+  (valueChange)="selectRange($event)"
+/>
+
+@if (failed()) {
+  <app-stats-error
+    class="mt-3"
+    title="Couldn’t load your weight"
+    [message]="errorText()"
+    (retry)="retry()"
+  />
+} @else if (view(); as view) {
+  <div
+    class="mt-3 space-y-4 transition-opacity duration-200"
+    [class.opacity-60]="loading()"
+    [attr.aria-busy]="loading()"
+  >
+    @if (!view.hasAny) {
+      <div class="card">
+        <app-empty-state
+          icon="scale"
+          title="No weigh-ins yet"
+          text="Weigh yourself a few times a week, ideally in the morning before eating. Your trend line smooths out daily water swings, and after a few weeks FoodLog can measure your real daily burn."
+        >
+          <button type="button" class="btn btn-primary min-h-12" (click)="openSheet()">
+            <app-icon name="scale" [size]="20" />
+            Log your weight
+          </button>
+        </app-empty-state>
+      </div>
+    } @else {
+      <section class="card p-4" aria-labelledby="weight-title">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <h2 id="weight-title" class="text-xs font-medium text-muted">
+              {{ view.trendCaption }}
+            </h2>
+            <p class="text-[32px] leading-9 font-bold tracking-tight text-fg tabular-nums">
+              {{ view.trendKg }}<span class="ml-1 text-sm font-medium text-muted">kg</span>
+            </p>
+          </div>
+          @if (view.change) {
+            <div class="shrink-0 pt-1 text-right">
+              <p class="text-lg leading-6 font-bold text-fg tabular-nums">{{ view.change }}</p>
+              <p class="text-xs text-muted">{{ view.changeCaption }}</p>
+            </div>
+          }
+        </div>
+
+        <dl class="mt-3 grid grid-cols-2 gap-2">
+          <div class="rounded-2xl bg-surface-2/70 px-3 py-2.5">
+            <dt class="text-[11px] font-medium text-muted">Weekly rate</dt>
+            @if (view.weekly) {
+              <dd class="text-sm font-semibold tabular-nums" [class]="view.toneClass">
+                {{ view.weekly }}/wk
+              </dd>
+              <dd class="text-[11px] text-muted tabular-nums">{{ view.weeklyPercent }}</dd>
+            } @else {
+              <dd class="text-sm font-semibold text-muted">Needs more data</dd>
+              <dd class="text-[11px] text-muted">3+ weigh-ins across a week</dd>
+            }
+          </div>
+          @if (view.latest; as latest) {
+            <div class="rounded-2xl bg-surface-2/70 px-3 py-2.5">
+              <dt class="text-[11px] font-medium text-muted">Latest weigh-in</dt>
+              <dd class="text-sm font-semibold text-fg tabular-nums">{{ latest.weight }}</dd>
+              <dd class="text-[11px] text-muted">{{ latest.day }}</dd>
+            </div>
+          }
+        </dl>
+
+        @if (chart(); as chart) {
+          <div
+            echarts
+            class="mt-3 h-56 w-full"
+            role="img"
+            [attr.aria-label]="chart.label"
+            [options]="chart.option"
+            [theme]="theme()"
+          ></div>
+          <ul
+            class="mt-2 flex flex-wrap items-center gap-x-3.5 gap-y-1.5 text-[11px] font-medium text-muted"
+            aria-label="Chart legend"
+          >
+            <li class="flex items-center gap-1.5">
+              <span class="size-2 rounded-full bg-muted"></span>
+              Weigh-in
+            </li>
+            <li class="flex items-center gap-1.5">
+              <span class="h-[3px] w-4 rounded-full bg-accent"></span>
+              Trend, smoothed over daily swings
+            </li>
+          </ul>
+        } @else {
+          <div
+            class="mt-3 flex flex-col items-center rounded-2xl border border-dashed border-line px-4 py-6 text-center"
+          >
+            <p class="text-sm font-medium text-fg">No weigh-ins in the {{ view.rangeCaption }}</p>
+            <button type="button" class="btn btn-secondary mt-3" (click)="openSheet()">
+              <app-icon name="plus" [size]="18" />
+              Log weight
+            </button>
+          </div>
+        }
+      </section>
+
+      <app-adaptive-burn-card
+        [adaptive]="view.adaptive"
+        [currentKcal]="view.currentKcal"
+        [source]="view.source"
+        [perWeek]="view.perWeek"
+        [busy]="adopting()"
+        (adopt)="adoptBurn($event)"
+      />
+
+      @if (view.rows.length > 0) {
+        <app-weigh-in-list
+          [rows]="view.rows"
+          [today]="today()"
+          [busyDate]="busyDate()"
+          [(editing)]="editing"
+          (save)="saveFromList($event)"
+          (remove)="removeWeighIn($event)"
+          (add)="openSheet()"
+        />
+      } @else {
+        <button type="button" class="btn btn-secondary min-h-12 w-full" (click)="openSheet()">
+          <app-icon name="plus" [size]="18" />
+          Add a weigh-in
+        </button>
+      }
+    }
+  </div>
+} @else {
+  <div class="mt-3 space-y-4" role="status" aria-label="Loading weight">
+    <div class="card p-4">
+      <app-skeleton shape="text" class="w-20" />
+      <app-skeleton class="mt-2 h-8 w-32" />
+      <div class="mt-3 grid grid-cols-2 gap-2">
+        <app-skeleton class="h-16" />
+        <app-skeleton class="h-16" />
+      </div>
+      <app-skeleton class="mt-4 h-52 w-full" />
+    </div>
+    <div class="card space-y-3 p-4">
+      <app-skeleton shape="text" class="w-40" />
+      <app-skeleton class="h-8 w-36" />
+      <app-skeleton shape="text" class="w-full" />
+    </div>
+  </div>
+}
+
+<app-weigh-in-sheet
+  [(open)]="sheetOpen"
+  [today]="today()"
+  [defaultWeight]="view()?.defaultWeight ?? null"
+  [logs]="summary()?.logs ?? []"
+  [busy]="sheetBusy()"
+  (submitted)="saveFromSheet($event)"
+/>

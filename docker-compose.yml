@@ -1,0 +1,54 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: food
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-food}
+      POSTGRES_DB: food
+    ports:
+      - "127.0.0.1:${DB_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U food -d food"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${FOODLOG_IMAGE:-foodlog:latest}
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 200s
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DATABASE_URL: postgresql://food:${POSTGRES_PASSWORD:-food}@db:5432/food?schema=public
+      PHOTOS_DIR: /app/data/photos
+      WEB_DIST_DIR: /app/web
+      COOKIE_SECURE: ${COOKIE_SECURE:-auto}
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    volumes:
+      - appdata:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  pgdata:
+  appdata:

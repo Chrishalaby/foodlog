@@ -1,0 +1,86 @@
+<app-bottom-sheet ariaLabel="Note actions" [(open)]="open" [canClose]="canClose" (closed)="reset()">
+  @if (note(); as current) {
+    @if (view() === 'actions') {
+      <div class="flex flex-col gap-2" (pointerdown)="arm()">
+        <p class="line-clamp-2 text-sm leading-snug break-words text-muted">{{ preview() }}</p>
+        <div class="-mx-2 flex flex-col" role="group" aria-label="Note actions">
+          <button
+            type="button"
+            class="flex min-h-14 w-full items-center gap-3.5 rounded-2xl px-3 py-2 text-left transition hover:bg-surface-2 active:bg-surface-2"
+            data-action="edit"
+            (click)="startEdit($event)"
+          >
+            <span
+              class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand/12 text-brand"
+            >
+              <app-icon name="edit" [size]="18" />
+            </span>
+            <span class="text-[15px] leading-5 font-semibold text-fg">
+              {{ hasText() ? 'Edit text' : 'Add text' }}
+            </span>
+          </button>
+          @if (hasText()) {
+            <button
+              type="button"
+              class="flex min-h-14 w-full items-center gap-3.5 rounded-2xl px-3 py-2 text-left transition hover:bg-surface-2 active:bg-surface-2"
+              data-action="copy"
+              (click)="copy($event)"
+            >
+              <span
+                class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent"
+              >
+                <app-icon name="copy" [size]="18" />
+              </span>
+              <span class="text-[15px] leading-5 font-semibold text-fg">Copy text</span>
+            </button>
+          }
+          <button
+            type="button"
+            class="flex min-h-14 w-full items-center gap-3.5 rounded-2xl px-3 py-2 text-left transition hover:bg-surface-2 active:bg-surface-2"
+            data-action="delete"
+            (click)="remove($event)"
+          >
+            <span
+              class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-danger/12 text-danger"
+            >
+              <app-icon name="trash" [size]="18" />
+            </span>
+            <span class="text-[15px] leading-5 font-semibold text-fg">Delete</span>
+          </button>
+        </div>
+      </div>
+    } @else {
+      <form class="flex flex-col gap-3" novalidate (submit)="save($event)">
+        <header class="flex items-center gap-1">
+          <button
+            type="button"
+            class="btn btn-ghost btn-icon -ml-2 text-muted"
+            aria-label="Back to actions"
+            (click)="backToActions()"
+          >
+            <app-icon name="chevron-left" [size]="22" />
+          </button>
+          <h2 class="min-w-0 flex-1 truncate text-lg font-semibold tracking-tight">Edit note</h2>
+        </header>
+        <label class="sr-only" [for]="fieldId">Note text</label>
+        <textarea
+          #field
+          class="input resize-none leading-snug"
+          rows="5"
+          autocapitalize="sentences"
+          [id]="fieldId"
+          [attr.maxlength]="textMax"
+          [value]="draft()"
+          (input)="onInput($event)"
+        ></textarea>
+        @if (current.photos.length === 0 && draft().trim() === '') {
+          <p class="text-xs text-muted">A note without photos needs some text.</p>
+        }
+        <button type="submit" class="btn btn-primary min-h-12 w-full" [disabled]="!canSave()">
+          <app-icon name="check" [size]="18" [strokeWidth]="2.5" />
+          Save
+        </button>
+      </form>
+    }
+  }
+</app-bottom-sheet>

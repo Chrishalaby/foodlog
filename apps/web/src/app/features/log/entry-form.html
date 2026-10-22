@@ -1,0 +1,110 @@
+<div class="flex flex-col gap-4">
+  <div class="flex items-end gap-3">
+    @if (thumbUrl(); as src) {
+      <button
+        type="button"
+        class="relative size-[4.5rem] shrink-0 overflow-hidden rounded-2xl bg-surface-2 ring-1 ring-line/70 transition active:scale-95"
+        aria-label="View photo"
+        (click)="photoOpen.emit()"
+      >
+        <img class="size-full object-cover" [src]="src" alt="" decoding="async" />
+        <span
+          class="absolute right-1 bottom-1 flex size-6 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur"
+        >
+          <app-icon name="search" [size]="13" [strokeWidth]="2.5" />
+        </span>
+      </button>
+    }
+    <div class="min-w-0 flex-1">
+      <label class="label" [for]="ids.name">Meal name</label>
+      <input
+        type="text"
+        class="input text-[17px] font-semibold"
+        autocomplete="off"
+        enterkeyhint="done"
+        [id]="ids.name"
+        [attr.maxlength]="nameMax"
+        [placeholder]="namePlaceholder()"
+        [value]="name()"
+        (input)="onName($event)"
+      />
+    </div>
+  </div>
+
+  <div>
+    <span class="label" [id]="ids.meal">Meal</span>
+    <app-meal-type-picker
+      [value]="mealType()"
+      [ariaLabel]="null"
+      [labelledBy]="ids.meal"
+      (picked)="onMealType($event)"
+    />
+  </div>
+
+  <div>
+    <label class="label" [for]="ids.time">When</label>
+    <div class="flex items-center gap-2">
+      <input
+        #timeInput
+        type="datetime-local"
+        class="input min-w-0 flex-1 text-left tabular-nums [&::-webkit-date-and-time-value]:text-left"
+        [id]="ids.time"
+        [value]="dateTime()"
+        [attr.aria-invalid]="timeInvalid() ? true : null"
+        (input)="onDateTime($event)"
+        (change)="onDateTime($event)"
+      />
+      <button type="button" class="btn btn-secondary shrink-0 px-3.5" (click)="setNow()">
+        <app-icon name="clock" [size]="18" />
+        Now
+      </button>
+    </div>
+    <app-after-midnight-note
+      [value]="dateTime()"
+      [storedDay]="storedDay()"
+      (recount)="recount.emit()"
+    />
+    @if (timeInvalid()) {
+      <p class="mt-1.5 text-xs text-danger">Choose a valid date and time.</p>
+    }
+    @if (photoTime(); as photo) {
+      <app-photo-time-note
+        class="mt-1"
+        [photoTime]="photo"
+        [dateTime]="dateTime()"
+        (changeRequested)="changeTime()"
+        (restore)="usePhotoTime(photo)"
+      />
+    }
+  </div>
+
+  <ng-content select="[entryFormBeforeItems]" />
+
+  <section class="flex flex-col gap-2.5" [attr.aria-labelledby]="ids.items">
+    <h2 class="section-title" [id]="ids.items">Items</h2>
+    @if (portionVisible()) {
+      <app-meal-portion
+        [factor]="scale().state.factor"
+        [portion]="portion()"
+        [baseCount]="scale().baseCount"
+        (picked)="pickPortion($event)"
+        (countPicked)="pickCount($event)"
+        (portionAdded)="addPortion($event)"
+        (portionRenamed)="renamePortion($event)"
+        (portionRemoved)="removePortion()"
+      />
+    }
+    <app-items-editor [(items)]="items" [compact]="compactItems()" [showErrors]="showErrors()" />
+  </section>
+
+  @if (mealMicros(); as meal) {
+    <app-micros-card
+      scope="meal"
+      [micros]="meal.micros"
+      [coverage]="meal.coverage"
+      [(expanded)]="microsOpen"
+    />
+  }
+
+  <ng-content />
+</div>

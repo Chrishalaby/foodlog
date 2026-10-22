@@ -1,0 +1,142 @@
+<app-settings-section
+  sectionId="settings-usage"
+  heading="Usage & costs"
+  icon="chart"
+  tone="warn"
+  description="What AI analysis has cost so far. Months follow UTC."
+>
+  <div class="flex items-center gap-3">
+    <label class="sr-only" for="usage-month">Month</label>
+    <select id="usage-month" class="input" (change)="selectMonth($event)">
+      @for (option of months; track option.value) {
+        <option [value]="option.value" [selected]="option.value === month()">
+          {{ option.label }}
+        </option>
+      }
+    </select>
+    @if (usage().isLoading() && summary()) {
+      <span class="shrink-0 text-xs text-muted" role="status">Updating…</span>
+    }
+  </div>
+
+  @if (loadError(); as message) {
+    <div
+      class="mt-4 flex flex-col items-start gap-3 rounded-xl border border-danger/30 bg-danger/10 px-3.5 py-3 text-sm text-danger"
+      role="alert"
+    >
+      <p class="flex items-start gap-2">
+        <app-icon class="mt-px" name="alert" [size]="16" />
+        <span>{{ message }}</span>
+      </p>
+      <button type="button" class="btn btn-secondary" (click)="retry()">
+        <app-icon name="refresh" [size]="16" />
+        Try again
+      </button>
+    </div>
+  } @else if (summary()) {
+    <dl class="mt-4 grid grid-cols-2 gap-2">
+      @for (stat of stats(); track stat.label) {
+        <div class="rounded-xl bg-surface-2 px-3 py-2.5">
+          <dt class="text-xs font-medium text-muted">{{ stat.label }}</dt>
+          <dd class="mt-0.5 text-lg leading-6 font-bold text-fg tabular-nums">{{ stat.value }}</dd>
+          <dd class="text-[11px] text-muted">{{ stat.hint }}</dd>
+        </div>
+      }
+    </dl>
+
+    @if (budget(); as b) {
+      <div class="mt-4">
+        <div class="flex items-baseline justify-between gap-3 text-sm">
+          <span class="font-medium text-fg">Monthly budget</span>
+          <span class="text-muted tabular-nums">
+            <span class="font-semibold text-fg">{{ b.spentText }}</span> / {{ b.budgetText }}
+          </span>
+        </div>
+        <div
+          class="mt-1.5 h-2 overflow-hidden rounded-full bg-surface-2"
+          role="progressbar"
+          aria-label="Monthly budget used"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          [attr.aria-valuenow]="b.percent"
+          [attr.aria-valuetext]="b.spentText + ' of ' + b.budgetText"
+        >
+          <div
+            class="h-full rounded-full transition-[width] duration-500"
+            [class]="b.barClass"
+            [style.width.%]="b.fillPercent"
+          ></div>
+        </div>
+        <p class="mt-1 text-xs" [class]="b.noteClass">{{ b.note }}</p>
+      </div>
+    }
+
+    @if (models().length > 0) {
+      <h3 class="section-title mt-5">By model</h3>
+      <ul class="mt-2 flex flex-col gap-2.5">
+        @for (row of models(); track row.model) {
+          <li>
+            <div class="flex items-baseline justify-between gap-3 text-sm">
+              <span class="min-w-0 truncate font-medium text-fg">{{ row.label }}</span>
+              <span class="shrink-0 text-muted tabular-nums">
+                {{ row.requests }} {{ row.requests === 1 ? 'request' : 'requests' }} ·
+                <span class="font-semibold text-fg">{{ row.costText }}</span>
+              </span>
+            </div>
+            <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-2" aria-hidden="true">
+              <div class="h-full rounded-full bg-accent" [style.width.%]="row.sharePercent"></div>
+            </div>
+          </li>
+        }
+      </ul>
+    }
+
+    <h3 class="section-title mt-5">Recent requests</h3>
+    @if (records().length === 0) {
+      <p class="mt-2 rounded-xl bg-surface-2 px-3.5 py-3 text-sm text-muted">{{ emptyText() }}</p>
+    } @else {
+      <ul class="mt-1 divide-y divide-line/60">
+        @for (record of records(); track record.id) {
+          <li class="flex items-start gap-3 py-2.5">
+            <span
+              class="mt-1.5 size-2 shrink-0 rounded-full"
+              [class.bg-ok]="record.success"
+              [class.bg-danger]="!record.success"
+              aria-hidden="true"
+            ></span>
+            <div class="min-w-0 flex-1">
+              <p class="flex items-baseline justify-between gap-3 text-sm">
+                <span class="min-w-0 truncate font-medium text-fg">
+                  {{ record.model }} <span class="font-normal text-muted">· {{ record.mode }}</span>
+                </span>
+                <span class="shrink-0 font-semibold text-fg tabular-nums">{{ record.cost }}</span>
+              </p>
+              <p class="mt-0.5 text-xs text-muted tabular-nums">
+                {{ record.when }} · {{ record.tokens }} · {{ record.duration }}
+              </p>
+              @if (record.error; as error) {
+                <p class="mt-0.5 text-xs font-medium text-danger">Failed: {{ error }}</p>
+              } @else {
+                <span class="sr-only">Succeeded</span>
+              }
+            </div>
+          </li>
+        }
+      </ul>
+    }
+
+    <p class="mt-3 text-xs text-muted tabular-nums">{{ footer() }}</p>
+  } @else {
+    <div class="mt-4 grid grid-cols-2 gap-2" aria-hidden="true">
+      @for (i of [0, 1, 2, 3]; track i) {
+        <app-skeleton class="h-[4.5rem]" />
+      }
+    </div>
+    <div class="mt-5 flex flex-col gap-3" aria-hidden="true">
+      <app-skeleton shape="text" class="w-1/3" />
+      <app-skeleton class="h-10" />
+      <app-skeleton class="h-10" />
+    </div>
+    <span class="sr-only" role="status">Loading usage…</span>
+  }
+</app-settings-section>

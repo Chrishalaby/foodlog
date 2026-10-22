@@ -1,0 +1,223 @@
+<header
+  class="sticky top-safe z-20 flex min-h-14 items-center gap-2 bg-bg/85 px-4 pt-3 pb-2 backdrop-blur-xl"
+>
+  <button type="button" class="btn btn-ghost btn-icon -ml-2" aria-label="Back" (click)="back()">
+    <app-icon name="chevron-left" [size]="24" />
+  </button>
+  <div class="min-w-0 flex-1">
+    <h1 class="truncate text-[22px] leading-7 font-bold tracking-tight text-fg">Edit entry</h1>
+    @if (subtitle()) {
+      <p class="truncate text-sm text-muted tabular-nums">{{ subtitle() }}</p>
+    }
+  </div>
+</header>
+
+@switch (store.status()) {
+  @case ('loading') {
+    <div class="flex flex-col gap-4 px-4 pt-2" aria-busy="true" aria-label="Loading entry">
+      <div class="flex items-end gap-3">
+        <app-skeleton class="size-[4.5rem] shrink-0 rounded-2xl" />
+        <div class="flex flex-1 flex-col gap-2">
+          <app-skeleton class="w-24" shape="text" />
+          <app-skeleton class="h-11" />
+        </div>
+      </div>
+      <app-skeleton class="h-12 rounded-2xl" />
+      <app-skeleton class="h-11" />
+      @for (i of skeletonItems; track i) {
+        <app-skeleton class="h-44 rounded-card" />
+      }
+    </div>
+  }
+  @case ('not_found') {
+    <app-empty-state
+      icon="search"
+      title="Entry not found"
+      text="It may have been deleted, or the link is wrong."
+    >
+      <a class="btn btn-primary" routerLink="/today">Back to today</a>
+    </app-empty-state>
+  }
+  @case ('error') {
+    <app-empty-state icon="alert" title="Couldn't load this entry" [text]="store.loadError() ?? ''">
+      <button type="button" class="btn btn-primary" (click)="reload()">
+        <app-icon name="refresh" [size]="18" />
+        Try again
+      </button>
+    </app-empty-state>
+  }
+  @default {
+    @if (entry(); as current) {
+      <div
+        class="flex animate-fade-in flex-col gap-4 px-4 pt-2 pb-28"
+        [attr.inert]="store.busy() ? '' : null"
+      >
+        @if (store.photos().length > 1) {
+          <app-photo-strip
+            [photos]="store.photos()"
+            [coverId]="store.coverId()"
+            hint="Tap to view or change the cover"
+            (viewed)="openPhoto($event)"
+          />
+        }
+        <app-entry-form
+          [(name)]="store.name"
+          [(mealType)]="store.mealType"
+          [(dateTime)]="store.dateTime"
+          [(items)]="store.items"
+          [(portion)]="store.portion"
+          [thumbUrl]="store.cover()?.thumbUrl ?? null"
+          [namePlaceholder]="namePlaceholder()"
+          [portionBaseline]="store.formVersion()"
+          [showErrors]="store.visibleValidationError() !== null"
+          [storedDay]="store.storedDay()"
+          (photoOpen)="openPhoto()"
+          (recount)="store.recount()"
+        >
+          <div entryFormBeforeItems>
+            <label class="label" for="entry-edit-description">Description</label>
+            <textarea
+              id="entry-edit-description"
+              class="input resize-none leading-snug"
+              rows="2"
+              placeholder="Optional notes"
+              [attr.maxlength]="descriptionMax"
+              [value]="store.description()"
+              (input)="onDescription($event)"
+            ></textarea>
+          </div>
+
+          <section class="grid grid-cols-3 gap-2" aria-label="Entry actions">
+            <button
+              type="button"
+              class="btn btn-secondary h-auto min-h-16 flex-col gap-1 px-2 py-2 text-[13px]"
+              (click)="logAgain()"
+            >
+              @if (store.busy() === 'duplicate') {
+                <app-spinner [size]="20" label="Logging again" />
+              } @else {
+                <app-icon name="copy" />
+              }
+              Log again
+            </button>
+            <button
+              type="button"
+              class="btn btn-secondary h-auto min-h-16 flex-col gap-1 px-2 py-2 text-[13px]"
+              aria-haspopup="dialog"
+              (click)="openFavorite()"
+            >
+              @if (store.busy() === 'favorite') {
+                <app-spinner [size]="20" label="Saving favorite" />
+              } @else {
+                <app-icon name="star" />
+              }
+              Favorite
+            </button>
+            <button
+              type="button"
+              class="btn btn-secondary h-auto min-h-16 flex-col gap-1 px-2 py-2 text-[13px] text-danger"
+              (click)="remove()"
+            >
+              @if (store.busy() === 'delete') {
+                <app-spinner [size]="20" label="Deleting" />
+              } @else {
+                <app-icon name="trash" />
+              }
+              Delete
+            </button>
+          </section>
+
+          <p class="text-center text-xs text-muted">
+            Logged via {{ sourceLabel() }}
+            @if (current.photo) {
+              · tap the photo to enlarge
+            }
+          </p>
+
+          @if (showAiDebug()) {
+            <app-raw-ai-panel
+              [state]="store.rawAi()"
+              (loadRequested)="store.loadRawAi()"
+              (copyJson)="copyRawAi($event)"
+            />
+          }
+        </app-entry-form>
+      </div>
+
+      <app-sticky-actions>
+        @if (message(); as text) {
+          <p
+            class="flex items-center justify-center gap-1.5 rounded-xl bg-elevated/95 px-3 py-2 text-center text-sm font-medium text-danger shadow-soft"
+            role="alert"
+          >
+            <app-icon name="alert" [size]="16" />
+            {{ text }}
+          </p>
+        }
+        <button
+          type="button"
+          class="btn btn-primary min-h-13 w-full text-base"
+          [disabled]="!store.dirty() || store.busy() !== null"
+          (click)="save()"
+        >
+          @if (store.busy() === 'save') {
+            <app-spinner [size]="18" label="Saving" />
+            Saving…
+          } @else if (store.busy() === 'rename') {
+            <app-spinner [size]="18" label="Renaming" />
+            Renaming…
+          } @else if (store.dirty()) {
+            <app-icon name="check" [strokeWidth]="2.5" />
+            Save changes
+            <span class="rounded-lg bg-brand-fg/12 px-2 py-0.5 text-sm tabular-nums">
+              {{ kcal() }} kcal
+            </span>
+          } @else {
+            <app-icon name="check" [strokeWidth]="2.5" />
+            No changes
+          }
+        </button>
+      </app-sticky-actions>
+
+      <app-photo-viewer
+        [photos]="viewerPhotos()"
+        [index]="photoIndex()"
+        [(open)]="photoOpen"
+        [coverId]="store.coverId()"
+        [coverBusy]="store.busy() === 'cover'"
+        [coverError]="coverError()"
+        (indexChange)="showPhoto($event)"
+        (coverPicked)="setCover($event)"
+      />
+
+      <app-bottom-sheet [(open)]="favoriteOpen" title="Save as favorite">
+        <form class="flex flex-col gap-4" (submit)="submitFavorite($event)">
+          <div>
+            <label class="label" for="entry-edit-favorite-name">Name</label>
+            <input
+              id="entry-edit-favorite-name"
+              type="text"
+              class="input"
+              autocomplete="off"
+              enterkeyhint="done"
+              [attr.maxlength]="nameMax"
+              [placeholder]="current.name"
+              [value]="favoriteName()"
+              (input)="onFavoriteName($event)"
+            />
+          </div>
+          @if (store.dirty()) {
+            <p class="flex items-start gap-2 text-xs leading-snug text-muted">
+              <app-icon class="mt-px text-accent" name="info" [size]="14" />
+              Your unsaved changes will be saved first.
+            </p>
+          }
+          <button type="submit" class="btn btn-primary min-h-12 w-full">
+            <app-icon name="star" [size]="18" />
+            Save favorite
+          </button>
+        </form>
+      </app-bottom-sheet>
+    }
+  }
+}

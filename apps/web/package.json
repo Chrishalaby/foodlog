@@ -1,0 +1,42 @@
+{
+  "name": "@food/web",
+  "version": "0.0.0",
+  "license": "AGPL-3.0-or-later",
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development",
+    "test": "ng test --watch=false",
+    "typecheck": "tsc -p tsconfig.app.json --noEmit"
+  },
+  "private": true,
+  "dependencies": {
+    "@angular/common": "^22.2.0",
+    "@angular/compiler": "^22.2.0",
+    "@angular/core": "^22.2.0",
+    "@angular/forms": "^22.2.0",
+    "@angular/platform-browser": "^22.2.0",
+    "@angular/router": "^22.2.0",
+    "@angular/service-worker": "^22.2.0",
+    "@food/shared": "*",
+    "barcode-detector": "^3.2.2",
+    "echarts": "^6.1.0",
+    "ngx-echarts": "^22.0.0",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@angular/build": "^22.2.0",
+    "@angular/cli": "^22.2.0",
+    "@angular/compiler-cli": "^22.2.0",
+    "@angular/pwa": "^22.2.0",
+    "@tailwindcss/postcss": "^4.3.3",
+    "jsdom": "^30.0.0",
+    "postcss": "^8.5.3",
+    "prettier": "^3.8.1",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.0"
+  }
+}

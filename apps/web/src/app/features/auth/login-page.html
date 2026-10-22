@@ -1,0 +1,127 @@
+<app-auth-layout [title]="title()" [subtitle]="subtitle()">
+  @if (hasRequest()) {
+    <section authTop class="card mb-4 p-5 shadow-lifted" aria-label="Your access request">
+      <app-access-request-card />
+    </section>
+  }
+
+  @if (demoEnabled()) {
+    <section
+      authTop
+      class="card mb-4 flex flex-col gap-3 p-5 shadow-lifted"
+      aria-labelledby="demo-title"
+    >
+      <div>
+        <h2 id="demo-title" class="text-base font-semibold text-fg">Try FoodLog now</h2>
+        <p class="mt-1 text-sm leading-snug text-muted">
+          A private sandbox with two months of example meals, weigh-ins and water. Change anything;
+          it is deleted after a day. AI estimates are simulated.
+        </p>
+      </div>
+      @if (demoError(); as message) {
+        <app-form-alert [message]="message" />
+      }
+      <button
+        type="button"
+        class="btn btn-primary min-h-12 w-full text-base"
+        data-testid="start-demo"
+        [disabled]="demoBusy()"
+        (click)="startDemo()"
+      >
+        @if (demoBusy()) {
+          <app-spinner [size]="18" label="Preparing the demo" />
+          Preparing your demo…
+        } @else {
+          Try the demo
+        }
+      </button>
+    </section>
+  }
+
+  <form class="flex flex-col gap-4" [formRoot]="loginForm" aria-label="Sign in">
+    @if (hasRequest()) {
+      <h2 class="text-base font-semibold text-fg">Already have an account?</h2>
+    }
+    @if (error(); as message) {
+      <app-form-alert [message]="message" />
+    } @else if (signedOut()) {
+      <app-form-alert tone="info" icon="lock" [message]="signedOutMessage" />
+    }
+
+    <div>
+      <label class="label" for="login-email">Email</label>
+      <input
+        id="login-email"
+        class="input"
+        type="email"
+        inputmode="email"
+        autocomplete="username"
+        autocapitalize="off"
+        spellcheck="false"
+        placeholder="you@example.com"
+        [formField]="loginForm.email"
+        [attr.aria-invalid]="loginForm.email().touched() && loginForm.email().invalid()"
+      />
+      @if (loginForm.email().touched() && loginForm.email().errors()[0]; as err) {
+        <p class="mt-1.5 text-xs text-danger">{{ err.message }}</p>
+      }
+    </div>
+
+    <div>
+      <label class="label" for="login-password">Password</label>
+      <div class="relative">
+        <input
+          id="login-password"
+          class="input pr-12"
+          autocomplete="current-password"
+          [type]="showPassword() ? 'text' : 'password'"
+          [formField]="loginForm.password"
+          [attr.aria-invalid]="loginForm.password().touched() && loginForm.password().invalid()"
+        />
+        <button
+          type="button"
+          class="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-xl text-muted transition hover:text-fg"
+          [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
+          [attr.aria-pressed]="showPassword()"
+          (click)="togglePassword()"
+        >
+          <app-icon [name]="showPassword() ? 'eye-off' : 'eye'" />
+        </button>
+      </div>
+      @if (loginForm.password().touched() && loginForm.password().errors()[0]; as err) {
+        <p class="mt-1.5 text-xs text-danger">{{ err.message }}</p>
+      }
+    </div>
+
+    <button
+      type="submit"
+      class="btn btn-primary mt-1 min-h-12 w-full text-base"
+      [disabled]="loginForm().submitting()"
+    >
+      @if (loginForm().submitting()) {
+        <app-spinner [size]="18" label="Signing in" />
+      }
+      Sign in
+    </button>
+    <p class="-mt-1 text-center text-xs leading-snug text-muted">{{ forgotPasswordHint }}</p>
+  </form>
+
+  @if (!hasRequest() && !demoEnabled()) {
+    <div class="mt-5 flex items-center gap-3 text-xs font-medium text-muted" aria-hidden="true">
+      <span class="h-px flex-1 bg-line"></span>
+      New to FoodLog?
+      <span class="h-px flex-1 bg-line"></span>
+    </div>
+    <a class="btn btn-secondary mt-3 min-h-12 w-full text-base" [routerLink]="requestAccessPath">
+      Request access
+    </a>
+    <p class="mt-2 text-center text-xs leading-snug text-muted">
+      FoodLog is invite-only. Ask the owner and finish on this device once you’re approved.
+    </p>
+  }
+
+  <p authFooter class="flex items-center justify-center gap-1.5">
+    <app-icon name="lock" [size]="14" />
+    {{ privacyNote }}
+  </p>
+</app-auth-layout>

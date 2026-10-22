@@ -1,0 +1,529 @@
+<header
+  class="sticky top-safe z-20 flex min-h-14 items-center gap-2 bg-bg/85 px-4 pt-3 pb-2 backdrop-blur-xl"
+>
+  <button
+    type="button"
+    class="btn btn-ghost btn-icon -ml-2"
+    aria-label="Close"
+    (click)="close.emit()"
+  >
+    <app-icon name="close" [size]="24" />
+  </button>
+  <div class="min-w-0 flex-1">
+    <h1
+      class="truncate text-[22px] leading-7 font-bold tracking-tight outline-none"
+      tabindex="-1"
+      [attr.data-autofocus]="isText() && !voiceRequested ? null : ''"
+    >
+      {{ title() }}
+    </h1>
+    @if (fromDraft()) {
+      <p class="truncate text-sm text-muted">From your drafts</p>
+    }
+  </div>
+</header>
+
+<div class="flex flex-col gap-5 px-4 pt-2" [class]="showDraftAction() ? 'pb-36' : 'pb-24'">
+  @if (store.barcode(); as barcode) {
+    <app-barcode-note
+      [barcode]="barcode"
+      detail="We'll remember this product after you save."
+      (removed)="store.clearBarcode()"
+    />
+  }
+
+  @if (store.error(); as failure) {
+    <app-error-card [failure]="failure" (dismissed)="store.dismissError()">
+      @if (failure.retryable) {
+        <button type="button" class="btn btn-secondary" (click)="store.retry()">
+          <app-icon name="refresh" [size]="18" />
+          Try again
+        </button>
+      }
+      @if (showDraftAction() && laterKinds.has(failure.kind) && store.canSaveDraft()) {
+        <button type="button" class="btn btn-secondary" (click)="saveDraft.emit()">
+          <app-icon name="clock" [size]="18" />
+          {{ draftLabel() }}
+        </button>
+      }
+      @if (!multiple() && (failure.kind === 'unreadable_image' || failure.kind === 'too_large')) {
+        <button type="button" class="btn btn-secondary" (click)="takePhoto()">
+          <app-icon name="camera" [size]="18" />
+          New photo
+        </button>
+      }
+      @if (failure.kind === 'budget' || failure.kind === 'not_configured') {
+        <button type="button" class="btn btn-secondary" (click)="searchFoods()">
+          <app-icon name="search" [size]="18" />
+          Search my foods
+        </button>
+        <button type="button" class="btn btn-secondary" (click)="scanBarcode()">
+          <app-icon name="barcode" [size]="18" />
+          Scan barcode
+        </button>
+      }
+      <button type="button" class="btn btn-ghost" (click)="manual.emit()">
+        <app-icon name="edit" [size]="18" />
+        Log manually
+      </button>
+    </app-error-card>
+  }
+
+  @if (remotePhotos().length > 0) {
+    <section class="flex flex-col gap-2" aria-labelledby="compose-draft-photos-title">
+      <div class="flex items-baseline justify-between gap-3">
+        <h2 id="compose-draft-photos-title" class="text-[15px] font-semibold text-fg">
+          {{ remotePhotos().length === 1 ? 'Photo' : 'Photos' }}
+        </h2>
+        <span class="text-xs text-muted">Saved with this draft</span>
+      </div>
+      @if (remotePhotos().length === 1) {
+        @for (ref of remotePhotos(); track ref.photo.id) {
+          <div class="relative overflow-hidden rounded-card border border-line/70 bg-surface-2">
+            <img
+              class="aspect-[4/3] w-full object-cover"
+              decoding="async"
+              [src]="ref.photo.url"
+              [alt]="remoteAlt(ref, 0)"
+            />
+            <span
+              class="absolute bottom-2 left-2 flex min-h-8 items-center gap-1 rounded-full bg-black/60 px-2.5 text-xs font-semibold text-white backdrop-blur"
+            >
+              <app-icon [name]="ref.role === 'label' ? 'label' : 'utensils'" [size]="13" />
+              {{ roleLabels[ref.role] }}
+            </span>
+          </div>
+        }
+      } @else {
+        <ul class="grid grid-cols-3 gap-2">
+          @for (ref of remotePhotos(); track ref.photo.id; let index = $index) {
+            <li
+              class="relative aspect-[3/4] overflow-hidden rounded-2xl border border-line/70 bg-surface-2"
+            >
+              <img
+                class="size-full object-cover"
+                decoding="async"
+                [src]="ref.photo.thumbUrl"
+                [alt]="remoteAlt(ref, index)"
+              />
+              <span
+                class="absolute bottom-1.5 left-1.5 flex min-h-7 items-center gap-1 rounded-full bg-black/60 px-2 text-[11px] font-semibold text-white backdrop-blur"
+              >
+                <app-icon [name]="ref.role === 'label' ? 'label' : 'utensils'" [size]="12" />
+                {{ roleLabels[ref.role] }}
+              </span>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  } @else if (!isText()) {
+    @if (multiple()) {
+      <section class="flex flex-col gap-2" aria-labelledby="compose-photos-title">
+        <div class="flex items-baseline justify-between gap-3">
+          <h2 id="compose-photos-title" class="text-[15px] font-semibold text-fg">Photos</h2>
+          <span class="text-xs text-muted tabular-nums">{{ photos().length }}/{{ maxPhotos }}</span>
+        </div>
+        <ul class="grid grid-cols-3 gap-2">
+          @for (photo of photos(); track photo.id; let index = $index) {
+            <li
+              class="relative aspect-[3/4] overflow-hidden rounded-2xl border bg-surface-2"
+              [class]="isFailed(photo) ? 'border-danger ring-2 ring-danger/40' : 'border-line/70'"
+            >
+              @if (isBroken(photo)) {
+                <span class="flex size-full items-center justify-center text-muted">
+                  <app-icon name="image" [size]="24" />
+                </span>
+              } @else {
+                <img
+                  class="size-full object-cover"
+                  decoding="async"
+                  [src]="photo.previewUrl"
+                  [alt]="'Photo ' + (index + 1) + ', ' + roleLabels[photo.role].toLowerCase()"
+                  (error)="markBroken(photo)"
+                />
+              }
+              @if (isFailed(photo)) {
+                <span
+                  class="absolute inset-x-1.5 top-11 rounded-lg bg-danger px-1.5 py-0.5 text-center text-[11px] font-semibold text-danger-fg"
+                >
+                  Can't read
+                </span>
+              }
+              <button
+                type="button"
+                class="absolute top-1.5 right-1.5 flex size-8 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur before:absolute before:-inset-1.5 before:content-[''] hover:bg-black/75"
+                data-photo-remove
+                [attr.aria-label]="'Remove photo ' + (index + 1)"
+                (click)="removePhoto(photo, index)"
+              >
+                <app-icon name="close" [size]="16" [strokeWidth]="2.5" />
+              </button>
+              <button
+                type="button"
+                class="absolute bottom-1.5 left-1.5 flex min-h-8 items-center gap-1 rounded-full px-2.5 text-xs font-semibold shadow-soft backdrop-blur transition before:absolute before:-inset-1.5 before:content-[''] active:scale-95"
+                [class]="
+                  photo.role === 'label'
+                    ? 'bg-white/90 text-black ring-1 ring-black/15'
+                    : 'bg-black/60 text-white'
+                "
+                [attr.aria-label]="roleAction(photo, index)"
+                (click)="toggleRole(photo)"
+              >
+                <app-icon [name]="photo.role === 'label' ? 'label' : 'utensils'" [size]="13" />
+                {{ roleLabels[photo.role] }}
+              </button>
+            </li>
+          }
+          @if (store.canAddPhoto()) {
+            <li
+              class="flex aspect-[3/4] flex-col overflow-hidden rounded-2xl border border-dashed border-line"
+            >
+              <button
+                type="button"
+                class="flex flex-1 flex-col items-center justify-center gap-1 text-xs font-semibold text-muted transition hover:bg-surface-2 hover:text-fg"
+                aria-label="Add a photo with the camera"
+                (click)="addPhoto('camera')"
+              >
+                <app-icon name="camera" [size]="20" />
+                Camera
+              </button>
+              <span class="h-px bg-line/70" aria-hidden="true"></span>
+              <button
+                type="button"
+                class="flex flex-1 flex-col items-center justify-center gap-1 text-xs font-semibold text-muted transition hover:bg-surface-2 hover:text-fg"
+                aria-label="Add a photo from the library"
+                (click)="addPhoto('library')"
+              >
+                <app-icon name="image" [size]="20" />
+                Library
+              </button>
+            </li>
+          }
+        </ul>
+        <p class="text-xs leading-snug text-muted">
+          Tap Food or Label on a photo to say what it shows. Labels give exact values.
+        </p>
+      </section>
+    } @else {
+      <div class="relative overflow-hidden rounded-card border border-line/70 bg-surface-2">
+        @if (store.previewUrl(); as url) {
+          @if (previewFailed()) {
+            <div
+              class="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 px-6 text-center text-sm text-muted"
+            >
+              <app-icon name="image" [size]="28" />
+              Preview isn't available on this device, but the photo can still be analyzed.
+            </div>
+          } @else {
+            <img
+              class="aspect-[4/3] w-full object-cover"
+              alt="Selected photo"
+              decoding="async"
+              [src]="url"
+              (error)="previewFailed.set(true)"
+            />
+          }
+          <div class="absolute right-2 bottom-2 flex gap-2">
+            <button
+              type="button"
+              class="btn rounded-full bg-black/55 px-3.5 text-sm text-white backdrop-blur hover:bg-black/70"
+              (click)="takePhoto()"
+            >
+              <app-icon name="camera" [size]="16" />
+              Retake
+            </button>
+            <button
+              type="button"
+              class="btn rounded-full bg-black/55 px-3.5 text-sm text-white backdrop-blur hover:bg-black/70"
+              (click)="choosePhoto()"
+            >
+              <app-icon name="image" [size]="16" />
+              Library
+            </button>
+          </div>
+        } @else {
+          <div
+            class="flex aspect-[4/3] w-full flex-col items-center justify-center gap-3 p-6 text-center"
+          >
+            <span
+              class="flex size-14 items-center justify-center rounded-2xl bg-brand/12 text-brand"
+            >
+              <app-icon
+                [name]="photoMode() === 'nutrition_label' ? 'label' : 'camera'"
+                [size]="28"
+              />
+            </span>
+            <p class="text-sm text-muted">
+              Add a photo of your
+              {{ photoMode() === 'nutrition_label' ? 'nutrition label' : 'meal' }}
+            </p>
+            <div class="flex gap-2">
+              <button type="button" class="btn btn-primary" (click)="takePhoto()">
+                <app-icon name="camera" [size]="18" />
+                Take photo
+              </button>
+              <button type="button" class="btn btn-secondary" (click)="choosePhoto()">
+                <app-icon name="image" [size]="18" />
+                Library
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+    @if (store.photoTime(); as photoTime) {
+      <div class="-mt-2 flex flex-col gap-2">
+        <app-photo-time-note
+          [photoTime]="photoTime"
+          [dateTime]="store.dateTime()"
+          (changeRequested)="editTime()"
+          (restore)="store.setCaptureTime(photoTime)"
+        />
+        @if (editingTime()) {
+          <div class="flex animate-fade-in items-center gap-2">
+            <label class="sr-only" for="compose-time">When did you eat this?</label>
+            <input
+              #timeInput
+              id="compose-time"
+              type="datetime-local"
+              class="input min-w-0 flex-1 text-left tabular-nums [&::-webkit-date-and-time-value]:text-left"
+              [value]="store.dateTime()"
+              (input)="onTime($event)"
+              (change)="onTime($event)"
+            />
+            <button
+              type="button"
+              class="btn btn-secondary shrink-0 px-3.5"
+              (click)="store.useCurrentTime()"
+            >
+              <app-icon name="clock" [size]="18" />
+              Now
+            </button>
+          </div>
+          <app-after-midnight-note [value]="store.dateTime()" />
+        }
+      </div>
+    }
+
+    @if (!multiple()) {
+      <app-segmented-control
+        ariaLabel="What's in the photo"
+        [options]="modeOptions"
+        [value]="photoMode()"
+        (valueChange)="setMode($event)"
+      />
+    }
+
+    @if (photos().length === 1 && store.canAddPhoto()) {
+      <div
+        class="flex items-center gap-3 rounded-2xl border border-dashed border-line px-3.5 py-2"
+        role="group"
+        aria-labelledby="compose-add-photo"
+      >
+        <span
+          class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-carbs/15 text-carbs"
+          aria-hidden="true"
+        >
+          <app-icon name="plus" [size]="18" [strokeWidth]="2.5" />
+        </span>
+        <span class="min-w-0 flex-1">
+          <span id="compose-add-photo" class="block text-sm leading-5 font-semibold text-fg">
+            {{ addPrompt().title }}
+          </span>
+          <span class="block text-xs leading-4 text-muted">{{ addPrompt().detail }}</span>
+        </span>
+        <button
+          type="button"
+          class="btn btn-ghost btn-icon shrink-0 text-fg"
+          aria-label="Add a photo with the camera"
+          (click)="addPhoto('camera')"
+        >
+          <app-icon name="camera" [size]="20" />
+        </button>
+        <button
+          type="button"
+          class="btn btn-ghost btn-icon -mr-2 shrink-0 text-fg"
+          aria-label="Add a photo from the library"
+          (click)="addPhoto('library')"
+        >
+          <app-icon name="image" [size]="20" />
+        </button>
+      </div>
+    }
+  }
+
+  @if (fromDraft() && !store.photoTime()) {
+    <div class="flex flex-col gap-2">
+      <div
+        class="flex min-h-12 items-center gap-2.5 rounded-2xl border border-line/70 bg-surface px-3.5 text-sm"
+      >
+        <app-icon class="text-muted" name="clock" [size]="18" />
+        <span class="min-w-0 flex-1 truncate text-fg">
+          Meal time <span class="font-semibold tabular-nums">{{ mealTime() }}</span>
+        </span>
+        @if (!editingTime()) {
+          <button
+            type="button"
+            class="-mr-2 inline-flex min-h-11 items-center rounded-xl px-2.5 text-sm font-semibold text-brand"
+            (click)="editTime()"
+          >
+            Change
+          </button>
+        }
+      </div>
+      @if (editingTime()) {
+        <div class="flex animate-fade-in items-center gap-2">
+          <label class="sr-only" for="compose-draft-time">When did you eat this?</label>
+          <input
+            #timeInput
+            id="compose-draft-time"
+            type="datetime-local"
+            class="input min-w-0 flex-1 text-left tabular-nums [&::-webkit-date-and-time-value]:text-left"
+            [value]="store.dateTime()"
+            (input)="onTime($event)"
+            (change)="onTime($event)"
+          />
+          <button
+            type="button"
+            class="btn btn-secondary shrink-0 px-3.5"
+            (click)="store.useCurrentTime()"
+          >
+            <app-icon name="clock" [size]="18" />
+            Now
+          </button>
+        </div>
+        <app-after-midnight-note [value]="store.dateTime()" />
+      }
+    </div>
+  }
+
+  @if (aiUnconfigured()) {
+    <div
+      class="flex items-start gap-2.5 rounded-card border border-warn/30 bg-warn/10 p-3.5 text-sm"
+      role="status"
+    >
+      <app-icon class="mt-0.5 text-warn" name="alert" />
+      <p class="leading-snug text-fg/85">
+        <span class="font-semibold text-warn">AI is not set up.</span>
+        @if (isAdmin()) {
+          Set OPENAI_API_KEY on the server to analyze meals, or log this one manually.
+        } @else {
+          Log from your foods, scan a barcode or enter this meal manually.
+        }
+      </p>
+    </div>
+  }
+
+  <div>
+    <div class="mb-1 flex items-baseline justify-between gap-3">
+      <label for="compose-description" class="text-[15px] font-semibold text-fg">
+        {{ isText() ? 'What did you eat?' : 'Add details' }}
+      </label>
+      @if (!isText()) {
+        <span class="flex items-center gap-1 text-xs font-semibold text-brand">
+          <app-icon name="sparkles" [size]="14" />
+          Biggest accuracy boost
+        </span>
+      }
+    </div>
+    <p id="compose-description-help" class="mb-2 text-xs leading-snug text-muted">{{ help() }}</p>
+    <textarea
+      id="compose-description"
+      class="input resize-none leading-snug"
+      autocapitalize="sentences"
+      [rows]="isText() ? 5 : 3"
+      [attr.maxlength]="descriptionMax"
+      [attr.aria-required]="isText()"
+      [attr.aria-describedby]="
+        needsAmount() ? 'compose-description-help compose-amount-hint' : 'compose-description-help'
+      "
+      [attr.data-autofocus]="isText() && !voiceRequested ? '' : null"
+      [placeholder]="placeholder()"
+      [value]="store.description()"
+      (input)="onDescription($event)"
+    ></textarea>
+    <app-voice-button class="mt-2" (transcribed)="addTranscript($event)" />
+    @if (needsAmount()) {
+      <p
+        id="compose-amount-hint"
+        class="mt-2 flex animate-fade-in items-start gap-2 rounded-xl bg-accent/10 px-3 py-2 text-xs leading-snug text-fg/85"
+      >
+        <app-icon class="mt-px text-accent" name="scale" [size]="14" />
+        <span>
+          <span class="font-semibold text-accent">Add how much</span> for a better estimate, e.g. “1
+          cup” or “150 g”.
+        </span>
+      </p>
+    }
+    <div class="mt-2 flex items-start gap-3">
+      <div class="flex flex-1 flex-wrap gap-x-1.5 gap-y-2" role="group" aria-label="Quick details">
+        @for (item of hints(); track item.hint) {
+          <button
+            type="button"
+            class="chip relative min-h-9 px-3 text-[13px] transition before:absolute before:inset-x-0 before:-inset-y-1 before:content-['']"
+            [class]="item.active ? 'bg-brand/15 text-brand' : ''"
+            [attr.aria-pressed]="item.active"
+            (click)="toggle(item.hint)"
+          >
+            <app-icon [name]="item.active ? 'check' : 'plus'" [size]="13" [strokeWidth]="2.5" />
+            {{ item.hint }}
+          </button>
+        }
+      </div>
+      <span class="shrink-0 pt-2 text-[11px] text-muted tabular-nums">
+        {{ descriptionCount() }}/{{ descriptionMax }}
+      </span>
+    </div>
+  </div>
+
+  <div class="card px-3.5 py-1">
+    <app-toggle-row
+      title="Precise analysis"
+      icon="sparkles"
+      [detail]="preciseText()"
+      [(checked)]="store.precise"
+    />
+  </div>
+</div>
+
+<app-sticky-actions>
+  @if (store.draftError(); as draftError) {
+    <p
+      class="flex items-center justify-center gap-1.5 rounded-xl bg-elevated/95 px-3 py-2 text-center text-sm font-medium text-danger shadow-soft"
+      role="alert"
+    >
+      <app-icon name="alert" [size]="16" />
+      {{ draftError }}
+    </p>
+  } @else if (analyzeHint(); as hint) {
+    <p class="text-center text-xs font-medium text-muted">{{ hint }}</p>
+  }
+  <button
+    type="button"
+    class="btn btn-primary min-h-13 w-full text-base"
+    [disabled]="!store.canAnalyze() || store.draftSaving() || voiceBusy()"
+    (click)="analyze()"
+  >
+    <app-icon name="sparkles" />
+    {{ store.precise() ? 'Analyze precisely' : 'Analyze' }}
+  </button>
+  @if (showDraftAction()) {
+    <button
+      type="button"
+      class="btn btn-ghost -mt-1 min-h-11 w-full text-muted hover:text-fg"
+      [disabled]="!store.canSaveDraft()"
+      [attr.aria-busy]="store.draftSaving()"
+      (click)="saveDraft.emit()"
+    >
+      @if (store.draftSaving()) {
+        <app-spinner [size]="16" label="Saving draft" />
+        Saving draft…
+      } @else {
+        <app-icon name="clock" [size]="18" />
+        {{ draftLabel() }}
+      }
+    </button>
+  }
+</app-sticky-actions>

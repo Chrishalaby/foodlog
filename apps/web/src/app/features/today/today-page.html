@@ -1,0 +1,178 @@
+<app-day-header
+  [date]="viewDate()"
+  [today]="today()"
+  [note]="dayEnds()"
+  [trainingDay]="trainingDay()"
+  [trainingDisabled]="!dashboard() || trainingBusy()"
+  [busy]="store.refreshing() && status() === 'ready'"
+  (navigate)="goTo($event)"
+  (toggleTraining)="setTrainingDay($event)"
+/>
+
+<div class="space-y-6 px-4 pt-2" [attr.aria-busy]="status() === 'loading'">
+  @switch (status()) {
+    @case ('loading') {
+      <app-today-skeleton />
+    }
+    @case ('error') {
+      <div
+        class="card flex flex-col items-center px-6 py-10 text-center animate-fade-in"
+        role="alert"
+      >
+        <div
+          class="mb-4 flex size-12 items-center justify-center rounded-2xl bg-danger/12 text-danger"
+        >
+          <app-icon name="alert" [size]="24" />
+        </div>
+        <h2 class="text-base font-semibold text-fg">Couldn't load this day</h2>
+        <p class="mt-1.5 max-w-xs text-sm leading-relaxed text-muted">{{ store.error() }}</p>
+        <button type="button" class="btn btn-secondary mt-5" (click)="retry()">
+          <app-icon name="refresh" [size]="18" />
+          Try again
+        </button>
+      </div>
+    }
+    @default {
+      @if (dashboard(); as data) {
+        <app-day-hero
+          class="animate-fade-in"
+          [totals]="data.day.totals"
+          [targets]="data.day.targets"
+          [trainingDay]="data.day.trainingDay"
+        />
+
+        @if (profileIncomplete()) {
+          <a
+            routerLink="/settings"
+            class="-mt-2 flex min-h-12 items-center gap-3 rounded-2xl border border-warn/25 bg-warn/10 px-3.5 py-2.5 text-sm text-fg transition active:opacity-80"
+          >
+            <app-icon class="text-warn" name="info" [size]="18" />
+            <span class="min-w-0 flex-1 leading-snug">
+              Using generic targets.
+              <span class="font-semibold text-warn">Complete your profile</span>
+              for personal ones.
+            </span>
+            <app-icon class="text-muted" name="chevron-right" [size]="18" />
+          </a>
+        }
+
+        <app-drafts-list variant="card" [limit]="2" />
+
+        <app-quick-add
+          [foods]="store.foods()"
+          [status]="store.foodsStatus()"
+          [busyKey]="chipBusyKey()"
+          (log)="quickLog($event)"
+          (adjust)="adjustFood($event)"
+          (options)="openFoodActions($event)"
+          (retry)="retryFoods()"
+          (scanBarcode)="scanBarcode()"
+          (scanLabel)="scanLabel()"
+          (describe)="describe()"
+        />
+
+        @if (viewDate() === today()) {
+          <app-meal-ideas-card class="-mt-4" [day]="data.day" (ask)="openIdeas()" />
+          <app-food-merge-card [today]="today()" />
+        }
+
+        <app-weight-card
+          [date]="viewDate()"
+          [today]="today()"
+          [goal]="store.profile()?.goal ?? null"
+          [profileWeight]="store.profile()?.weightKg ?? null"
+        />
+
+        <app-fluids-card [date]="viewDate()" [today]="today()" />
+
+        <app-day-limits [totals]="data.day.totals" [targets]="data.day.targets" />
+
+        <app-day-micros
+          class="-mt-3"
+          [micros]="data.day.micros"
+          [coverage]="data.day.microsCoverage"
+        />
+
+        @if (data.entries.length === 0) {
+          <section
+            class="card relative overflow-hidden animate-fade-in"
+            aria-labelledby="today-empty-title"
+          >
+            <div
+              class="pointer-events-none absolute inset-x-0 -top-24 mx-auto size-64 rounded-full bg-brand/10 blur-3xl"
+              aria-hidden="true"
+            ></div>
+            <div class="relative flex flex-col items-center px-6 pt-8 pb-7 text-center">
+              <div
+                class="mb-4 flex size-16 items-center justify-center rounded-3xl bg-brand/15 text-brand ring-1 ring-brand/25"
+              >
+                <app-icon name="utensils" [size]="30" />
+              </div>
+              <h2 id="today-empty-title" class="text-lg font-semibold tracking-tight text-fg">
+                {{ emptyTitle() }}
+              </h2>
+              <p class="mt-1.5 max-w-xs text-sm leading-relaxed text-muted">
+                Snap a photo of your meal and get an instant nutrition estimate you can review
+                before saving.
+              </p>
+              <button
+                type="button"
+                class="btn btn-primary mt-6 min-h-13 w-full max-w-xs rounded-2xl text-base"
+                (click)="takePhoto()"
+              >
+                <app-icon name="camera" [size]="22" [strokeWidth]="2.1" />
+                Take a photo
+              </button>
+              <button
+                type="button"
+                class="btn btn-ghost mt-2 w-full max-w-xs text-muted"
+                (click)="chooseFromLibrary()"
+              >
+                <app-icon name="image" [size]="18" />
+                Choose from library
+              </button>
+            </div>
+          </section>
+        }
+
+        @if (data.entries.length > 0) {
+          <app-meal-timeline
+            [entries]="data.entries"
+            (open)="openEntry($event)"
+            (logAgain)="logAgain($event)"
+            (favorite)="saveFavorite($event)"
+            (remove)="deleteEntry($event)"
+          />
+        }
+      }
+    }
+  }
+</div>
+
+<app-food-actions-sheet
+  [(open)]="foodActionsOpen"
+  [selection]="foodActions()"
+  [busy]="chipBusyKey() !== null"
+  [rename]="renameFood"
+  (adjust)="adjustFood($event)"
+  (hide)="hideFood($event)"
+  (editProduct)="editProduct($event)"
+  (deleteProduct)="deleteProduct($event)"
+/>
+<app-quick-log-sheet
+  [(open)]="quickLogOpen"
+  [selection]="quickLogSelection()"
+  (logged)="onQuickLogged($event)"
+  (edit)="editFood($event)"
+/>
+<app-meal-ideas-sheet
+  [(open)]="ideasOpen"
+  [date]="today()"
+  [day]="ideasDay()"
+  (logged)="onIdeaLogged($event)"
+/>
+<app-product-edit-sheet
+  [(open)]="productEditorOpen"
+  [food]="productTarget()"
+  (missing)="onProductMissing($event)"
+/>

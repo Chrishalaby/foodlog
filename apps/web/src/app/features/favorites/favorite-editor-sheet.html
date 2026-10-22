@@ -1,0 +1,96 @@
+<app-bottom-sheet [(open)]="open" [title]="title()" [canClose]="canClose">
+  <div class="flex flex-col gap-4">
+    <div>
+      <label class="label" [for]="idPrefix + '-name'">Name</label>
+      <input
+        type="text"
+        class="input font-semibold"
+        placeholder="e.g. Overnight oats"
+        autocomplete="off"
+        enterkeyhint="done"
+        [id]="idPrefix + '-name'"
+        [attr.maxlength]="nameMax"
+        [attr.aria-invalid]="error() && name().trim().length === 0 ? true : null"
+        [value]="name()"
+        (input)="onNameInput($event)"
+      />
+    </div>
+
+    <div>
+      <label class="label" [for]="idPrefix + '-meal'">Meal type</label>
+      <select
+        class="input"
+        [id]="idPrefix + '-meal'"
+        [attr.aria-describedby]="idPrefix + '-meal-hint'"
+        (change)="onMealTypeChange($event)"
+      >
+        <option [value]="noneValue" [selected]="mealType() === null">
+          Match the time I log it
+        </option>
+        @for (type of mealTypes; track type) {
+          <option [value]="type" [selected]="mealType() === type">
+            {{ mealTypeLabels[type] }}
+          </option>
+        }
+      </select>
+      <p class="mt-1.5 text-xs text-muted" [id]="idPrefix + '-meal-hint'">
+        One-tap logging uses this meal type, or guesses it from the time of day.
+      </p>
+    </div>
+
+    <section [attr.aria-labelledby]="idPrefix + '-items'">
+      <h3 class="section-title mb-2" [id]="idPrefix + '-items'">Items</h3>
+      <app-meal-portion
+        class="mb-2.5"
+        label="Portion"
+        addLead="This favorite is"
+        [showFactors]="false"
+        [portion]="portion()"
+        [baseCount]="scale().baseCount"
+        (countPicked)="pickCount($event)"
+        (portionAdded)="setPortion($event, true)"
+        (portionRenamed)="setPortion($event, false)"
+        (portionRemoved)="setPortion(null, true)"
+      />
+      <app-items-editor
+        [items]="items()"
+        [compact]="true"
+        [showErrors]="error() !== null"
+        (itemsChange)="onItemsChange($event)"
+      />
+    </section>
+
+    <div
+      class="sticky bottom-[calc(-1.25rem-env(safe-area-inset-bottom))] -mx-5 mb-[calc(-1.25rem-env(safe-area-inset-bottom))] border-t border-line/70 bg-elevated px-5 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))]"
+    >
+      @if (error(); as message) {
+        <p class="mb-2.5 text-sm text-danger" role="alert">{{ message }}</p>
+      }
+      <div class="flex items-center gap-2">
+        @if (favorite()) {
+          <button
+            type="button"
+            class="btn btn-ghost btn-icon text-danger"
+            aria-label="Delete favorite"
+            (click)="requestDelete()"
+          >
+            <app-icon name="trash" />
+          </button>
+        }
+        <button
+          type="button"
+          class="btn btn-primary min-h-12 flex-1"
+          [disabled]="saving()"
+          (click)="save()"
+        >
+          @if (saving()) {
+            <app-spinner [size]="18" label="Saving" />
+          } @else {
+            <app-icon name="check" [size]="18" [strokeWidth]="2.5" />
+          }
+          {{ favorite() ? 'Save changes' : 'Create favorite' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</app-bottom-sheet>

@@ -1,0 +1,144 @@
+<app-auth-layout [title]="title()" [subtitle]="subtitle()">
+  @switch (state()) {
+    @case ('loading') {
+      <div class="flex flex-col gap-4" aria-busy="true">
+        <app-skeleton class="h-12" />
+        <app-skeleton class="h-11" />
+        <app-skeleton class="h-11" />
+        <app-skeleton class="h-12" />
+        <span class="sr-only" role="status">Checking your link…</span>
+      </div>
+    }
+    @case ('error') {
+      <div class="flex flex-col items-center gap-3 py-2 text-center" role="alert">
+        <span
+          class="flex size-12 items-center justify-center rounded-2xl bg-danger/12 text-danger"
+          aria-hidden="true"
+        >
+          <app-icon name="wifi-off" [size]="24" />
+        </span>
+        <p class="text-sm leading-relaxed text-muted">{{ loadError() }}</p>
+        <button type="button" class="btn btn-primary min-h-12 w-full" (click)="retry()">
+          <app-icon name="refresh" [size]="18" />
+          Try again
+        </button>
+      </div>
+    }
+    @case ('invalid') {
+      <div class="flex flex-col gap-4">
+        <div class="flex items-start gap-3">
+          <span
+            class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-warn/15 text-warn"
+            aria-hidden="true"
+          >
+            <app-icon [name]="reason().icon" [size]="22" />
+          </span>
+          <p class="pt-0.5 text-sm leading-relaxed text-muted">{{ reason().text }}</p>
+        </div>
+        @if (signedIn()) {
+          <a class="btn btn-primary min-h-12 w-full text-base" [routerLink]="homePath">
+            Back to FoodLog
+          </a>
+        } @else {
+          <a class="btn btn-primary min-h-12 w-full text-base" [routerLink]="loginPath">
+            Go to sign in
+          </a>
+          @if (isInvite() && info()?.reason !== 'account_exists') {
+            <a class="btn btn-secondary min-h-12 w-full" [routerLink]="requestAccessPath">
+              Request access instead
+            </a>
+          }
+        }
+      </div>
+    }
+    @case ('signed-in') {
+      <div class="flex flex-col gap-4">
+        <app-form-alert tone="info" icon="info" [message]="signedInMessage()" />
+        <button
+          type="button"
+          class="btn btn-primary min-h-12 w-full text-base"
+          [disabled]="signingOut()"
+          (click)="signOutFirst()"
+        >
+          @if (signingOut()) {
+            <app-spinner [size]="18" label="Signing out" />
+          } @else {
+            <app-icon name="logout" [size]="18" />
+          }
+          Sign out and continue
+        </button>
+        <a class="btn btn-secondary min-h-12 w-full" [routerLink]="homePath" [replaceUrl]="true"
+          >Stay signed in</a
+        >
+      </div>
+    }
+    @case ('form') {
+      <form
+        class="flex flex-col gap-4"
+        [attr.aria-label]="isInvite() ? 'Create your account' : 'Set a new password'"
+        [formRoot]="tokenForm"
+      >
+        <input type="email" name="username" autocomplete="username" hidden [value]="email()" />
+        <div class="flex items-center gap-3 rounded-xl bg-surface-2 px-3.5 py-3">
+          <app-icon class="text-muted" name="mail" [size]="18" />
+          <div class="min-w-0 flex-1">
+            <p class="text-xs text-muted">{{ isInvite() ? 'Your account' : 'Account' }}</p>
+            <p class="truncate text-sm font-semibold text-fg">{{ email() }}</p>
+          </div>
+        </div>
+
+        @if (submitError(); as message) {
+          <app-form-alert [message]="message" />
+        }
+
+        @if (isInvite()) {
+          <div>
+            <label class="label" for="token-name">
+              Your name <span class="font-normal">(optional)</span>
+            </label>
+            <input
+              id="token-name"
+              class="input"
+              autocomplete="name"
+              autocapitalize="words"
+              [formField]="tokenForm.name"
+              [attr.aria-invalid]="tokenForm.name().touched() && tokenForm.name().invalid()"
+            />
+            @if (tokenForm.name().touched() && tokenForm.name().errors()[0]; as err) {
+              <p class="mt-1.5 text-xs text-danger">{{ err.message }}</p>
+            }
+          </div>
+        }
+
+        <app-new-password-fields
+          idPrefix="token"
+          [label]="isInvite() ? 'Password' : 'New password'"
+          [password]="tokenForm.password"
+          [confirm]="tokenForm.confirmPassword"
+        />
+
+        <button
+          type="submit"
+          class="btn btn-primary mt-1 min-h-12 w-full text-base"
+          [disabled]="tokenForm().submitting()"
+        >
+          @if (tokenForm().submitting()) {
+            <app-spinner [size]="18" label="Saving" />
+          }
+          {{ isInvite() ? 'Create account' : 'Set new password' }}
+        </button>
+        @if (expiry()) {
+          <p class="flex items-center justify-center gap-1.5 text-xs text-muted">
+            <app-icon name="clock" [size]="14" />
+            {{ expiry() }}
+          </p>
+        }
+      </form>
+    }
+  }
+
+  <p authFooter class="flex items-center justify-center gap-1.5">
+    <app-icon name="lock" [size]="14" />
+    Only you can see your food log.
+  </p>
+</app-auth-layout>

@@ -1,0 +1,213 @@
+<app-page-header
+  title="What should I eat?"
+  [subtitle]="subtitle()"
+  backLink="/today"
+  backLabel="Back to Today"
+>
+  @if (canClear()) {
+    <button type="button" class="btn btn-ghost px-3 text-muted" (click)="store.clear()">
+      Clear
+    </button>
+  }
+</app-page-header>
+
+<div class="flex flex-col gap-4 px-4" [class.pb-28]="showSticky()">
+  <app-compare-budget
+    [budget]="store.budget()"
+    [error]="store.dayError()"
+    (retry)="store.loadDay()"
+  />
+
+  @if (!sheetOpen()) {
+    @if (store.menu().status === 'scanning') {
+      <div class="card flex items-center gap-3 p-3.5">
+        <app-spinner class="text-brand" [size]="22" label="Reading the menu" />
+        <p class="min-w-0 flex-1 text-sm">
+          <span class="block font-semibold text-fg">Reading your menu…</span>
+          <span class="block text-xs text-muted tabular-nums" aria-hidden="true"
+            >{{ menuScanSeconds() }} s · usually 15–30 s</span
+          >
+        </p>
+        <button type="button" class="btn btn-secondary px-3" (click)="openSheet('menu')">
+          View
+        </button>
+      </div>
+    } @else if (store.menuReady() && store.lastMenu(); as menu) {
+      <div class="card flex items-center gap-3 border-brand/40 p-3.5" role="status">
+        <span
+          class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand/15 text-brand"
+        >
+          <app-icon name="utensils" [size]="20" />
+        </span>
+        <p class="min-w-0 flex-1 text-sm">
+          <span class="block font-semibold text-fg">Menu ready</span>
+          <span class="block truncate text-xs text-muted">
+            {{ menu.dishes.length }} {{ menu.dishes.length === 1 ? 'dish' : 'dishes' }} found{{
+              menu.restaurant ? ' at ' + menu.restaurant : ''
+            }}
+          </span>
+        </p>
+        <button type="button" class="btn btn-primary px-3" (click)="openSheet('dishes')">
+          Pick dishes
+        </button>
+        <button
+          type="button"
+          class="btn btn-ghost btn-icon -mr-2 text-muted"
+          aria-label="Dismiss"
+          (click)="store.dismissMenuReady()"
+        >
+          <app-icon name="close" [size]="18" />
+        </button>
+      </div>
+    }
+  }
+
+  @if (winner(); as best) {
+    <button
+      type="button"
+      class="card flex w-full items-center gap-3 p-3.5 text-left ring-1 ring-brand/40 transition active:scale-[0.99]"
+      data-testid="verdict"
+      (click)="showOption(best.option.id)"
+    >
+      <span
+        class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand/15 text-brand"
+      >
+        <app-icon name="sparkles" />
+      </span>
+      <span class="min-w-0 flex-1">
+        <span class="block text-xs font-semibold text-brand">{{ best.label }}</span>
+        <span class="block truncate text-[15px] leading-5 font-semibold text-fg">{{
+          best.option.name
+        }}</span>
+        @if (best.ranked.reasons[0]; as reason) {
+          <span class="block truncate text-xs text-muted">{{ reason.text }}</span>
+        }
+      </span>
+      <app-icon class="shrink-0 text-muted" name="chevron-down" [size]="18" />
+    </button>
+  }
+
+  @for (slot of slots(); track slot.id) {
+    <app-compare-option
+      [slot]="slot"
+      [ranked]="rankedById().get(slot.id) ?? null"
+      [winnerLabel]="ranking()?.winnerLabel ?? null"
+      [now]="now()"
+      [logging]="store.loggingId() === slot.id"
+      [locked]="store.loggingId() !== null"
+      (removed)="store.remove(slot.id)"
+      (retried)="store.retry(slot.id)"
+      (logRequested)="log(slot)"
+      (portionChange)="setPortion(slot, $event)"
+      (labelScan)="scanLabel(slot)"
+    />
+  }
+
+  @if (showGrid()) {
+    <section class="card p-4" aria-labelledby="compare-add-title">
+      @if (hasSlots()) {
+        <h2 id="compare-add-title" class="text-base font-semibold text-fg">
+          Add something to compare it with
+        </h2>
+        <p class="mt-1 text-sm leading-snug text-muted">
+          One more option and FoodLog shows which fits what's left of your day.
+        </p>
+      } @else {
+        <h2 id="compare-add-title" class="text-base font-semibold text-fg">
+          Can't decide what to eat?
+        </h2>
+        <p class="mt-1 text-sm leading-snug text-muted">
+          Add 2 to {{ maxOptions }} options. FoodLog ranks them against what's left of today and
+          tells you why.
+        </p>
+      }
+      <div class="mt-4 grid grid-cols-3 gap-2">
+        @for (tile of tiles; track tile.id) {
+          <button
+            type="button"
+            class="flex min-h-24 min-w-0 flex-col items-center justify-center gap-1.5 rounded-2xl border border-line/70 bg-surface-2/60 px-1 py-2.5 text-center transition active:scale-[0.97] active:bg-surface-2"
+            [attr.aria-label]="
+              tile.label + ', ' + (tile.caption === 'AI' ? 'AI estimate' : 'instant')
+            "
+            (click)="useTile(tile)"
+          >
+            <span class="flex size-10 items-center justify-center rounded-xl" [class]="tile.tone">
+              <app-icon [name]="tile.icon" [size]="20" />
+            </span>
+            <span class="text-[13px] leading-4 font-semibold text-fg">{{ tile.label }}</span>
+            <span class="text-[11px] leading-3 text-muted">{{ tile.caption }}</span>
+          </button>
+        }
+      </div>
+    </section>
+  }
+
+  @if (rows().length > 0) {
+    <app-compare-table [columns]="columns()" [rows]="rows()" />
+  }
+
+  <p class="sr-only" role="status">{{ statusText() }}</p>
+</div>
+
+@if (showSticky()) {
+  <app-sticky-actions>
+    <div class="flex gap-2">
+      @if (canAdd()) {
+        <button
+          type="button"
+          [class]="
+            winner()
+              ? 'btn btn-secondary min-h-12 shrink-0 px-4'
+              : 'btn btn-primary min-h-12 flex-1 text-base'
+          "
+          (click)="openSheet()"
+        >
+          <app-icon name="plus" [size]="18" [strokeWidth]="2.5" />
+          {{ winner() ? 'Add' : 'Add option' }}
+        </button>
+      }
+      @if (winner(); as best) {
+        <button
+          type="button"
+          class="btn btn-primary min-h-12 min-w-0 flex-1 text-base"
+          [disabled]="store.loggingId() !== null"
+          [attr.aria-label]="'Log ' + best.option.name + ', ' + winnerKcal() + ' kcal'"
+          (click)="logWinner()"
+        >
+          @if (store.loggingId() === best.option.id) {
+            <app-spinner [size]="18" label="Logging" />
+          } @else {
+            <app-icon name="check" [size]="18" [strokeWidth]="2.5" />
+          }
+          <span class="truncate">{{ winnerAction() }} · {{ winnerKcal() }} kcal</span>
+        </button>
+      }
+    </div>
+  </app-sticky-actions>
+}
+
+<app-add-option-sheet [now]="now()" (pickPhoto)="pickPhoto($event)" (scanBarcode)="openScanner()" />
+
+@if (scanning()) {
+  <app-barcode-scanner (detected)="onBarcode($event)" (closed)="scanning.set(false)" />
+}
+
+<input
+  #cameraInput
+  type="file"
+  accept="image/*"
+  capture="environment"
+  class="sr-only"
+  tabindex="-1"
+  aria-hidden="true"
+  (change)="onPhotoChosen(cameraInput)"
+/>
+<input
+  #galleryInput
+  type="file"
+  accept="image/*"
+  class="sr-only"
+  tabindex="-1"
+  aria-hidden="true"
+  (change)="onPhotoChosen(galleryInput)"
+/>

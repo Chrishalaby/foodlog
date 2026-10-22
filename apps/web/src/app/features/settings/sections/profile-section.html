@@ -1,0 +1,237 @@
+@let f = form();
+<app-settings-section
+  sectionId="settings-profile"
+  heading="Profile"
+  icon="scale"
+  tone="brand"
+  description="Used to calculate your daily calorie and macro targets."
+>
+  <div class="grid grid-cols-2 gap-x-3 gap-y-4">
+    <div>
+      <label class="label" for="profile-weight">Weight</label>
+      <app-decimal-field
+        inputId="profile-weight"
+        unit="kg"
+        placeholder="72.5"
+        describedBy="profile-weight-error"
+        [decimals]="1"
+        [formField]="f.weightKg"
+      />
+      <app-field-error errorId="profile-weight-error" [field]="f.weightKg" />
+    </div>
+    <div>
+      <label class="label" for="profile-height">Height</label>
+      <app-decimal-field
+        inputId="profile-height"
+        unit="cm"
+        placeholder="175"
+        describedBy="profile-height-error"
+        [decimals]="1"
+        [formField]="f.heightCm"
+      />
+      <app-field-error errorId="profile-height-error" [field]="f.heightCm" />
+    </div>
+    <div>
+      <label class="label" for="profile-age">Age</label>
+      <app-decimal-field
+        inputId="profile-age"
+        unit="yrs"
+        placeholder="30"
+        describedBy="profile-age-error"
+        [decimals]="0"
+        [formField]="f.age"
+      />
+      <app-field-error errorId="profile-age-error" [field]="f.age" />
+    </div>
+    <div>
+      <span class="label" id="profile-sex-label">Sex</span>
+      <app-choice-field labelledBy="profile-sex-label" [options]="sexOptions" [formField]="f.sex" />
+    </div>
+  </div>
+
+  <div class="mt-4">
+    <div class="mb-1.5 flex items-center justify-between gap-2">
+      <label class="text-sm font-medium text-muted" for="profile-body-fat">Body fat</label>
+      <span class="chip">Optional</span>
+    </div>
+    <app-decimal-field
+      inputId="profile-body-fat"
+      unit="%"
+      placeholder="—"
+      describedBy="profile-body-fat-hint profile-body-fat-error"
+      [decimals]="1"
+      [formField]="f.bodyFatPct"
+    />
+    <app-field-error errorId="profile-body-fat-error" [field]="f.bodyFatPct" />
+    <p id="profile-body-fat-hint" class="mt-1.5 text-xs leading-relaxed text-muted">
+      {{ bodyFatHint() }} With it, your burn uses lean mass (Katch-McArdle).
+    </p>
+  </div>
+
+  <div class="mt-4">
+    <label class="label" for="profile-activity">Activity level</label>
+    <select id="profile-activity" class="input" [formField]="f.activityLevel">
+      @for (option of activityOptions; track option.value) {
+        <option [value]="option.value">{{ option.label }}</option>
+      }
+    </select>
+  </div>
+
+  <div class="mt-4">
+    <span class="label" id="profile-goal-label">Goal</span>
+    <app-choice-field
+      labelledBy="profile-goal-label"
+      [options]="goalOptions"
+      [formField]="f.goal"
+    />
+  </div>
+
+  <div class="mt-4">
+    <span class="label" id="profile-training-label">Training days per week</span>
+    <app-stepper-field
+      labelledBy="profile-training-label"
+      describedBy="profile-training-hint"
+      unitLabel="training days per week"
+      decreaseLabel="Fewer training days"
+      increaseLabel="More training days"
+      [formField]="f.trainingDaysPerWeek"
+    />
+    <p id="profile-training-hint" class="mt-2 text-xs leading-relaxed text-muted">
+      {{ trainingHint() }}
+    </p>
+  </div>
+
+  <div class="mt-4">
+    <div class="mb-1.5 flex items-center justify-between gap-2">
+      <label class="text-sm font-medium text-muted" for="profile-tdee">Daily calorie burn</label>
+      <span class="chip" [class]="burnOverridden() ? 'bg-accent/15 text-accent' : ''">
+        {{ burnOverridden() ? 'Your value' : 'Formula' }}
+      </span>
+    </div>
+    <div class="flex items-center gap-2">
+      <app-decimal-field
+        class="min-w-0 flex-1"
+        inputId="profile-tdee"
+        unit="kcal"
+        describedBy="profile-tdee-hint profile-tdee-error"
+        [decimals]="0"
+        [placeholder]="burnPlaceholder()"
+        [formField]="f.tdeeOverride"
+      />
+      <button
+        #useFormulaButton
+        type="button"
+        class="btn btn-ghost shrink-0 px-3 text-sm text-accent"
+        aria-label="Use the formula for your daily calorie burn"
+        [class.invisible]="!burnOverridden()"
+        (click)="useFormula()"
+      >
+        Use formula
+      </button>
+    </div>
+    <app-field-error errorId="profile-tdee-error" [field]="f.tdeeOverride" />
+    <p id="profile-tdee-hint" class="mt-1.5 text-xs leading-relaxed text-muted">
+      {{ burnHint() }}
+      @if (!burnOverridden()) {
+        Know your real burn? Type it in.
+      }
+    </p>
+    @if (adaptiveView(); as view) {
+      <div
+        class="mt-3 flex items-center gap-3 rounded-2xl border border-accent/30 bg-accent/10 p-3.5"
+        role="status"
+      >
+        <span
+          class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent"
+          aria-hidden="true"
+        >
+          <app-icon name="sparkles" [size]="18" />
+        </span>
+        <div class="min-w-0 flex-1">
+          <p class="text-sm font-semibold text-fg tabular-nums">
+            Measured burn ≈ {{ view.kcal }} kcal
+          </p>
+          <p class="mt-0.5 text-xs leading-snug text-muted">{{ view.summary }}</p>
+        </div>
+        @if (view.inUse) {
+          <span class="chip shrink-0 bg-accent/15 text-accent">In use</span>
+        } @else {
+          <button
+            type="button"
+            class="btn btn-secondary shrink-0 px-3.5"
+            [attr.aria-label]="'Use the measured burn of ' + view.kcal + ' kcal'"
+            (click)="useMeasured(view.value)"
+          >
+            Use it
+          </button>
+        }
+      </div>
+    }
+  </div>
+
+  <div class="mt-5 rounded-2xl border border-line/60 bg-surface-2/60 p-3.5">
+    <div class="flex items-center justify-between gap-2">
+      <h3 class="section-title">Live preview</h3>
+      @if (!preview().complete) {
+        <span class="chip bg-warn/15 text-warn">Generic targets</span>
+      }
+    </div>
+
+    <dl class="mt-3 grid grid-cols-3 gap-2">
+      @for (stat of energyStats(); track stat.label) {
+        <div class="rounded-xl bg-surface px-2.5 py-2 text-center">
+          <dt class="text-[11px] font-medium text-muted">{{ stat.label }}</dt>
+          <dd class="text-lg leading-6 font-bold text-fg tabular-nums">{{ stat.text }}</dd>
+          <dd class="text-[11px] text-muted">{{ stat.hint }}</dd>
+        </div>
+      }
+    </dl>
+
+    @if (missingHint(); as hint) {
+      <p class="mt-2 text-xs leading-relaxed text-warn">{{ hint }}</p>
+    }
+
+    <table class="mt-3 w-full text-sm tabular-nums">
+      <caption class="sr-only">
+        Daily targets by day type
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col" class="py-1 text-left text-xs font-medium text-muted">Per day</th>
+          @for (column of columns(); track column.kind) {
+            <th scope="col" class="py-1 text-right text-xs font-medium text-muted">
+              {{ column.label }}
+            </th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of macroRows; track row.key) {
+          <tr class="border-t border-line/50">
+            <th scope="row" class="py-1.5 text-left font-medium text-fg">
+              <span class="inline-flex items-center gap-1.5">
+                <span
+                  class="size-2 rounded-full"
+                  aria-hidden="true"
+                  [style.background-color]="row.color"
+                ></span>
+                {{ row.label }}
+                <span class="text-xs font-normal text-muted">{{ row.unit }}</span>
+              </span>
+            </th>
+            @for (column of columns(); track column.kind) {
+              <td class="py-1.5 text-right font-semibold text-fg">
+                {{ format(column.values[row.key]) }}
+              </td>
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <a class="btn btn-secondary mt-4 w-full" [routerLink]="onboardingLink">
+    <app-icon name="sparkles" [size]="18" />
+    Redo setup wizard
+  </a>
+</app-settings-section>

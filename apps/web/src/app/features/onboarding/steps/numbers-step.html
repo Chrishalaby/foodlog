@@ -1,0 +1,199 @@
+@let f = form();
+@let s = summary();
+@let e = energy();
+<section class="card relative overflow-hidden p-5" aria-labelledby="ob-target-heading">
+  <div
+    class="pointer-events-none absolute -top-20 -right-16 size-52 rounded-full bg-calories/15 blur-3xl"
+    aria-hidden="true"
+  ></div>
+  <p id="ob-target-heading" class="relative text-sm font-medium text-muted">Daily calorie target</p>
+  <p class="relative mt-1 flex items-baseline gap-1.5">
+    <span class="text-5xl leading-none font-bold tracking-tight text-fg tabular-nums">{{
+      calories()
+    }}</span>
+    <span class="text-base font-semibold text-muted">kcal</span>
+  </p>
+  <p class="relative mt-2.5 text-sm leading-snug text-muted">{{ s.goalNote }}</p>
+  <dl class="relative mt-4 grid grid-cols-3 gap-2">
+    @for (macro of heroMacros(); track macro.key) {
+      <div class="rounded-2xl bg-surface-2/70 px-3 py-2.5">
+        <dt class="flex items-center gap-1.5 text-xs font-medium text-muted">
+          <span
+            class="size-2 rounded-full"
+            aria-hidden="true"
+            [style.background-color]="macro.color"
+          ></span>
+          {{ macro.label }}
+        </dt>
+        <dd class="mt-0.5 text-xl leading-7 font-bold text-fg tabular-nums">
+          {{ macro.text }}<span class="ml-0.5 text-xs font-medium text-muted">g</span>
+        </dd>
+      </div>
+    }
+  </dl>
+  @if (cycleNote(); as note) {
+    <p class="relative mt-3 text-xs leading-relaxed text-muted">{{ note }}</p>
+  }
+</section>
+
+<section class="card p-4" aria-labelledby="ob-energy-heading">
+  <h2 id="ob-energy-heading" class="text-base font-semibold text-fg">Daily calorie burn</h2>
+  <dl class="mt-3 grid grid-cols-2 gap-2">
+    <div class="rounded-2xl bg-surface-2/70 px-3 py-2.5">
+      <dt class="text-xs font-medium text-muted">Resting (BMR)</dt>
+      <dd class="text-xl leading-7 font-bold text-fg tabular-nums">
+        {{ e.bmr }}<span class="ml-1 text-xs font-medium text-muted">kcal</span>
+      </dd>
+      <dd class="text-[11px] text-muted">{{ e.bmrHint }}</dd>
+    </div>
+    <div class="rounded-2xl bg-surface-2/70 px-3 py-2.5">
+      <dt class="text-xs font-medium text-muted">Daily burn</dt>
+      <dd class="text-xl leading-7 font-bold text-fg tabular-nums">
+        {{ e.tdee }}<span class="ml-1 text-xs font-medium text-muted">kcal</span>
+      </dd>
+      <dd class="text-[11px]" [class]="s.burnSource === 'override' ? 'text-accent' : 'text-muted'">
+        {{ e.tdeeHint }}
+      </dd>
+    </div>
+  </dl>
+  <p class="mt-2.5 text-xs leading-relaxed text-muted">{{ e.explanation }}</p>
+
+  @if (showBurnEditor()) {
+    <div class="mt-3 animate-fade-in">
+      <label class="label" [for]="burnInputId">Your real daily burn</label>
+      <div class="flex items-center gap-2">
+        <app-decimal-field
+          class="min-w-0 flex-1"
+          unit="kcal"
+          describedBy="ob-tdee-hint ob-tdee-error"
+          [inputId]="burnInputId"
+          [decimals]="0"
+          [placeholder]="e.placeholder"
+          [formField]="f.tdeeOverride"
+        />
+        <button
+          type="button"
+          class="btn btn-ghost shrink-0 px-3 text-accent"
+          (click)="useFormula()"
+        >
+          Use formula
+        </button>
+      </div>
+      <app-field-error errorId="ob-tdee-error" [field]="f.tdeeOverride" />
+      <p id="ob-tdee-hint" class="mt-1.5 text-xs leading-relaxed text-muted">
+        From a fitness tracker or careful tracking. After a few weeks of logging food and weight,
+        FoodLog measures it for you.
+      </p>
+    </div>
+  } @else {
+    <button
+      type="button"
+      class="btn btn-secondary mt-3 w-full"
+      [id]="burnEditId"
+      (click)="editBurn()"
+    >
+      <app-icon name="edit" [size]="16" />
+      I know my real burn
+    </button>
+  }
+</section>
+
+<section class="card p-4" aria-labelledby="ob-targets-heading">
+  <h2 id="ob-targets-heading" class="text-base font-semibold text-fg">Targets</h2>
+  <p class="mt-0.5 text-sm leading-snug text-muted">
+    Leave a value empty to keep it calculated for you.
+  </p>
+  <ul class="mt-1 divide-y divide-line/60">
+    @for (row of rows(); track row.key) {
+      <li class="py-2.5">
+        <div class="flex items-center gap-2.5">
+          <span
+            class="size-2.5 shrink-0 rounded-full"
+            aria-hidden="true"
+            [style.background-color]="row.color"
+          ></span>
+          <div class="min-w-0 flex-1">
+            <label class="block text-sm font-semibold text-fg" [for]="'ob-target-' + row.key">
+              {{ row.label }}
+            </label>
+            <p class="text-xs text-muted tabular-nums" [id]="'ob-target-' + row.key + '-hint'">
+              @if (row.overridden) {
+                <span class="font-medium text-accent">Custom</span> · auto {{ row.autoText }}
+              } @else {
+                Auto
+              }
+            </p>
+          </div>
+          <app-decimal-field
+            class="w-28 shrink-0"
+            [inputId]="'ob-target-' + row.key"
+            [describedBy]="'ob-target-' + row.key + '-hint ob-target-' + row.key + '-error'"
+            [unit]="row.unit"
+            [decimals]="0"
+            [placeholder]="row.placeholder"
+            [formField]="f.overrides[row.key]"
+          />
+          <button
+            type="button"
+            class="btn btn-ghost min-w-11 shrink-0 px-2 text-sm text-accent"
+            [class.invisible]="!row.overridden"
+            [attr.aria-label]="'Use the automatic ' + row.label.toLowerCase()"
+            (click)="useAuto(row.key)"
+          >
+            Auto
+          </button>
+        </div>
+        <app-field-error
+          [errorId]="'ob-target-' + row.key + '-error'"
+          [field]="f.overrides[row.key]"
+        />
+      </li>
+    }
+  </ul>
+
+  <h3 class="section-title mt-4">Daily limits</h3>
+  <ul class="mt-2 grid grid-cols-3 gap-2">
+    @for (limit of limits(); track limit.key) {
+      <li class="rounded-2xl bg-surface-2/70 px-3 py-2.5">
+        <p class="text-[11px] font-medium text-muted">{{ limit.label }}</p>
+        <p class="text-base leading-6 font-bold text-fg tabular-nums">
+          {{ limit.text
+          }}<span class="ml-0.5 text-xs font-medium text-muted">{{ limit.unit }}</span>
+        </p>
+        <p class="text-[11px] text-muted">{{ limit.kind }}</p>
+      </li>
+    }
+  </ul>
+
+  @if (s.targets.warnings.length > 0) {
+    <ul class="mt-3 flex flex-col gap-2" aria-label="Target warnings">
+      @for (warning of s.targets.warnings; track warning) {
+        <li
+          class="flex items-start gap-2 rounded-xl border border-warn/30 bg-warn/10 px-3 py-2.5 text-sm leading-snug text-warn"
+        >
+          <app-icon class="mt-px" name="alert" [size]="16" />
+          <span>{{ warning }}</span>
+        </li>
+      }
+    </ul>
+  }
+</section>
+
+<section class="card p-4" aria-labelledby="ob-body-heading">
+  <h2 id="ob-body-heading" class="text-base font-semibold text-fg">Body</h2>
+  <app-body-metrics-view
+    class="mt-3"
+    missingBodyFatText="Add your body fat % to see your lean mass and FFMI, a measure of how muscular you are."
+    [metrics]="s.body"
+  />
+  @if (s.body.bmi !== null && s.body.ffmi === null) {
+    <button
+      type="button"
+      class="btn btn-ghost mt-1 -mb-1 w-full text-accent"
+      (click)="editAbout.emit()"
+    >
+      <app-icon name="plus" [size]="16" />
+      Add body fat %
+    </button>
+  }
+</section>

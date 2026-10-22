@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NG_CLI_ANALYTICS: 'false'
+      PRISMA_HIDE_UPDATE_MESSAGE: '1'
+      CHECKPOINT_DISABLE: '1'
+      NPM_CONFIG_AUDIT: 'false'
+      NPM_CONFIG_FUND: 'false'
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: food
+          POSTGRES_PASSWORD: food
+          POSTGRES_DB: food
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U food -d food"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build:shared
+      - run: npm run db:generate -w @food/api
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run test:e2e

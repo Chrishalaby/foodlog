@@ -1,0 +1,270 @@
+<header
+  class="sticky top-safe z-20 flex min-h-14 items-center gap-2 bg-bg/85 px-4 pt-3 pb-2 backdrop-blur-xl"
+>
+  <button
+    type="button"
+    class="btn btn-ghost btn-icon -ml-2"
+    [attr.aria-label]="closeLabel()"
+    [disabled]="busy()"
+    (click)="discard.emit()"
+  >
+    <app-icon [name]="inBatch() ? 'chevron-left' : 'close'" [size]="24" />
+  </button>
+  <div class="min-w-0 flex-1">
+    <h1
+      class="truncate text-[22px] leading-7 font-bold tracking-tight text-fg outline-none"
+      tabindex="-1"
+      data-autofocus
+    >
+      Review meal
+    </h1>
+    <p class="truncate text-sm text-muted">{{ subtitle() }}</p>
+  </div>
+</header>
+
+<div
+  class="flex flex-col gap-4 px-4 pt-2"
+  [class]="showDraftAction() ? 'pb-40' : 'pb-28'"
+  [attr.inert]="busy() ? '' : null"
+>
+  @if (store.error(); as failure) {
+    <app-error-card [failure]="failure" (dismissed)="store.dismissError()">
+      @if (failure.retryable) {
+        <button type="button" class="btn btn-secondary" (click)="store.retry()">
+          <app-icon name="refresh" [size]="18" />
+          Try again
+        </button>
+      }
+    </app-error-card>
+  }
+
+  @if (store.barcode(); as barcode) {
+    <app-barcode-note
+      [barcode]="barcode"
+      [detail]="barcodeDetail()"
+      [disabled]="busy()"
+      (removed)="store.clearBarcode()"
+    />
+  }
+
+  @if (store.reviewPhotos().length > 1) {
+    <app-photo-strip
+      [photos]="store.reviewPhotos()"
+      [coverId]="coverId()"
+      hint="Tap to view or pick the cover"
+      (viewed)="openPhoto($event)"
+    />
+  }
+
+  <app-entry-form
+    [(name)]="store.name"
+    [(mealType)]="store.mealType"
+    [(dateTime)]="store.dateTime"
+    [(items)]="store.items"
+    [(portion)]="store.portion"
+    [thumbUrl]="store.thumbUrl()"
+    [namePlaceholder]="namePlaceholder()"
+    [autoMealType]="store.mealTypeAuto()"
+    [portionBaseline]="store.seedVersion()"
+    [photoTime]="store.photoTime()"
+    [showErrors]="store.visibleValidationError() !== null"
+    (mealTypePicked)="store.pickMealType($event)"
+    (photoOpen)="openPhoto()"
+  >
+    <div entryFormBeforeItems class="flex flex-col gap-3 empty:hidden">
+      @if (warnings().length > 0) {
+        <section class="rounded-card border border-warn/30 bg-warn/10 p-3.5" aria-label="Warnings">
+          <ul class="flex flex-col gap-2 text-sm leading-snug text-fg/90">
+            @for (warning of warnings(); track $index) {
+              <li class="flex items-start gap-2">
+                <app-icon class="mt-0.5 text-warn" name="alert" [size]="16" />
+                <span>{{ warning }}</span>
+              </li>
+            }
+          </ul>
+        </section>
+      }
+      @if (followUpQuestion(); as question) {
+        <app-follow-up-card
+          [question]="question"
+          [options]="result()?.followUpOptions ?? []"
+          [(answer)]="store.followUpAnswer"
+          (submitted)="followUp.emit($event)"
+        />
+      }
+      @if (store.label(); as label) {
+        <app-label-panel
+          [label]="label"
+          [amount]="store.labelItem()?.grams ?? null"
+          [saveable]="labelSaveable()"
+          [savedName]="labelSavedName()"
+          (amountChange)="store.applyLabelAmount($event)"
+          (saveFood)="saveLabelFood()"
+        />
+      }
+    </div>
+
+    @if (assumptions().length > 0 || result()?.scaleCues) {
+      <section class="rounded-card bg-surface-2 p-3.5" aria-labelledby="review-assumptions">
+        <h2 id="review-assumptions" class="section-title">What the AI assumed</h2>
+        <ul class="mt-2 flex flex-col gap-2 text-[13px] leading-snug text-fg/85">
+          @if (result()?.scaleCues; as cues) {
+            <li class="flex gap-2">
+              <app-icon class="mt-px text-muted" name="scale" [size]="14" />
+              <span>{{ cues }}</span>
+            </li>
+          }
+          @for (assumption of visibleAssumptions(); track $index) {
+            <li class="flex items-start gap-2">
+              <span class="mt-[7px] size-1 shrink-0 rounded-full bg-muted"></span>
+              <span class="min-w-0 flex-1">{{ assumption }}</span>
+              <button
+                type="button"
+                class="relative -my-0.5 shrink-0 rounded-lg px-2 py-0.5 text-xs font-semibold text-accent transition before:absolute before:-inset-x-1.5 before:-inset-y-3 before:content-[''] hover:bg-accent/10 disabled:opacity-50"
+                [attr.aria-label]="'Correct: ' + assumption"
+                [disabled]="busy()"
+                (click)="correctAssumption(assumption)"
+              >
+                Correct
+              </button>
+            </li>
+          }
+        </ul>
+        @if (hiddenAssumptions() > 0) {
+          <button
+            type="button"
+            class="mt-1 -mb-1.5 flex min-h-11 items-center gap-1 text-xs font-semibold text-muted hover:text-fg"
+            [attr.aria-expanded]="showAllAssumptions()"
+            (click)="showAllAssumptions.set(!showAllAssumptions())"
+          >
+            {{ showAllAssumptions() ? 'Show less' : 'Show ' + hiddenAssumptions() + ' more' }}
+            <app-icon
+              class="transition-transform"
+              name="chevron-down"
+              [size]="14"
+              [class.rotate-180]="showAllAssumptions()"
+            />
+          </button>
+        }
+      </section>
+    }
+
+    @if (store.canCorrect()) {
+      <app-correct-ai-card
+        [(open)]="store.correctionOpen"
+        [(text)]="store.correction"
+        [disabled]="busy()"
+        [focusToken]="correctFocus()"
+        (submitted)="correct.emit($event)"
+      />
+    }
+    @if (store.analysis()) {
+      <app-label-photo-card
+        [photos]="store.analysisPhotos()"
+        [hint]="labelHint()"
+        [disabled]="busy()"
+        (camera)="addLabelPhoto('camera')"
+        (library)="addLabelPhoto('library')"
+      />
+    }
+
+    @if (store.analysis()) {
+      <div class="flex flex-col gap-2">
+        @if (store.canRecheckPrecise()) {
+          <button type="button" class="btn btn-secondary min-h-12 w-full" (click)="recheck.emit()">
+            <app-icon class="text-accent" name="sparkles" [size]="18" />
+            Re-check with precise model
+          </button>
+        }
+        @if (usage(); as line) {
+          <p class="text-center text-[11px] text-muted tabular-nums">{{ line }}</p>
+        }
+      </div>
+    }
+  </app-entry-form>
+
+  <div class="card px-3.5 py-1">
+    <app-toggle-row
+      title="Save as favorite"
+      detail="Log it again later in one tap"
+      icon="star"
+      [(checked)]="store.saveAsFavorite"
+    />
+    @if (store.saveAsFavorite()) {
+      <div class="animate-fade-in pb-3.5">
+        <label class="label" for="review-favorite-name">Favorite name</label>
+        <input
+          id="review-favorite-name"
+          type="text"
+          class="input"
+          autocomplete="off"
+          enterkeyhint="done"
+          [attr.maxlength]="nameMax"
+          [placeholder]="favoritePlaceholder()"
+          [value]="store.favoriteName()"
+          (input)="onFavoriteName($event)"
+        />
+      </div>
+    }
+  </div>
+</div>
+
+<app-sticky-actions>
+  @if (message(); as text) {
+    <p
+      class="flex items-center justify-center gap-1.5 rounded-xl bg-elevated/95 px-3 py-2 text-center text-sm font-medium text-danger shadow-soft"
+      role="alert"
+    >
+      <app-icon name="alert" [size]="16" />
+      {{ text }}
+    </p>
+  }
+  <button
+    type="button"
+    class="btn btn-primary min-h-13 w-full text-base"
+    [disabled]="busy()"
+    (click)="save.emit()"
+  >
+    @if (logging()) {
+      <app-spinner [size]="18" label="Saving" />
+      Saving…
+    } @else {
+      <app-icon name="check" [strokeWidth]="2.5" />
+      Save to log
+      <span class="rounded-lg bg-brand-fg/12 px-2 py-0.5 text-sm tabular-nums"
+        >{{ kcal() }} kcal</span
+      >
+    }
+  </button>
+  @if (showDraftAction()) {
+    <button
+      type="button"
+      class="btn btn-ghost -mt-1 min-h-11 w-full text-muted hover:text-fg"
+      [disabled]="busy() || !store.canSaveDraft()"
+      [attr.aria-busy]="store.draftSaving()"
+      (click)="saveDraft.emit()"
+    >
+      @if (store.draftSaving()) {
+        <app-spinner [size]="16" label="Saving draft" />
+        Saving draft…
+      } @else {
+        <app-icon name="clock" [size]="18" />
+        {{ fromDraft() ? 'Update draft' : 'Save as draft' }}
+      }
+    </button>
+  }
+</app-sticky-actions>
+
+<app-save-my-food-sheet
+  [(open)]="labelSaveOpen"
+  [seed]="labelSeed()"
+  (saved)="onLabelFoodSaved($event)"
+/>
+
+<app-photo-viewer
+  [photos]="viewerPhotos()"
+  [(index)]="photoIndex"
+  [(open)]="photoOpen"
+  [coverId]="coverId()"
+  (coverPicked)="store.chooseCover($event)"
+/>

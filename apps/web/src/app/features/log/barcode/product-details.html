@@ -1,0 +1,370 @@
+<div class="flex flex-col gap-4">
+  <header class="flex items-start gap-3">
+    @if (imageUrl(); as url) {
+      <img
+        class="size-16 shrink-0 rounded-2xl bg-white object-contain p-1"
+        alt=""
+        width="64"
+        height="64"
+        decoding="async"
+        referrerpolicy="no-referrer"
+        [src]="url"
+        (error)="imageFailed.set(true)"
+      />
+    } @else {
+      <span
+        class="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-accent/15 text-accent"
+        aria-hidden="true"
+      >
+        <app-icon name="barcode" [size]="28" />
+      </span>
+    }
+    <div class="min-w-0 flex-1 pt-0.5">
+      <h2
+        class="line-clamp-2 text-lg leading-6 font-semibold tracking-tight break-words"
+        [id]="ids.title"
+      >
+        {{ name() }}
+      </h2>
+      <p class="mt-0.5 truncate text-xs text-muted tabular-nums">{{ meta() }}</p>
+      @if (ours()) {
+        <span
+          class="mt-1.5 inline-flex items-center gap-1 rounded-full bg-ok/15 px-2 py-0.5 text-[11px] leading-4 font-semibold text-ok"
+        >
+          <app-icon name="check" [size]="12" [strokeWidth]="2.5" />
+          Your product
+        </span>
+      }
+    </div>
+    <button
+      type="button"
+      class="btn btn-ghost btn-icon -mt-1 -mr-2 text-muted"
+      aria-label="Close"
+      (click)="closed.emit()"
+    >
+      <app-icon name="close" [size]="22" />
+    </button>
+  </header>
+
+  @if (missing(); as note) {
+    <div
+      class="-mt-1 flex items-center gap-2 rounded-xl border border-warn/25 bg-warn/10 py-1 pr-1 pl-3 text-warn"
+      role="note"
+    >
+      <app-icon name="info" [size]="16" />
+      <p class="min-w-0 flex-1 py-1 text-xs leading-4">
+        <span class="block font-semibold">{{ note.title }}</span
+        >&ngsp;<span class="block">{{ note.detail }}</span>
+      </p>
+      <button
+        type="button"
+        class="min-h-11 shrink-0 rounded-lg px-3 text-xs font-semibold hover:bg-warn/15"
+        [disabled]="busy()"
+        (click)="editValues.emit()"
+      >
+        Edit values
+      </button>
+    </div>
+  } @else if (!ours()) {
+    <div
+      class="-mt-1 flex items-center gap-2 rounded-xl border border-warn/25 bg-warn/10 py-1 pr-1 pl-3 text-warn"
+      role="note"
+    >
+      <app-icon name="info" [size]="16" />
+      <p class="min-w-0 flex-1 text-xs leading-4 font-semibold">
+        Open Food Facts — check the values
+      </p>
+      <button
+        type="button"
+        class="min-h-11 shrink-0 rounded-lg px-3 text-xs font-semibold hover:bg-warn/15"
+        aria-label="Fix the values"
+        [disabled]="busy()"
+        (click)="editValues.emit()"
+      >
+        Fix
+      </button>
+    </div>
+  }
+
+  <section class="rounded-2xl border border-line/70 bg-surface" aria-label="Nutrition facts">
+    <button
+      type="button"
+      class="flex min-h-12 w-full items-center gap-2 px-3.5 py-2 text-left"
+      [attr.aria-expanded]="showFacts()"
+      (click)="showFacts.set(!showFacts())"
+    >
+      <span class="min-w-0 flex-1">
+        <span class="block text-[11px] font-semibold tracking-[0.08em] text-muted uppercase"
+          >Per 100 {{ unit() }}</span
+        >
+        <span class="block truncate text-sm font-semibold text-fg tabular-nums">{{
+          per100Summary()
+        }}</span>
+      </span>
+      <span class="flex shrink-0 items-center gap-1 text-xs font-semibold text-brand">
+        {{ showFacts() ? 'Less' : 'Details' }}
+        <app-icon
+          class="transition-transform"
+          name="chevron-down"
+          [size]="14"
+          [class.rotate-180]="showFacts()"
+        />
+      </span>
+    </button>
+    @if (showFacts()) {
+      <div class="animate-fade-in border-t border-line/70 px-3.5 pt-1 pb-3">
+        <table class="w-full text-sm tabular-nums">
+          <caption class="sr-only">
+            Nutrition per 100
+            {{
+              unit()
+            }}
+            and for this portion
+          </caption>
+          <thead>
+            <tr class="text-[11px] font-semibold tracking-wide text-muted uppercase">
+              <th scope="col" class="py-1.5 text-left font-semibold">Nutrient</th>
+              <th scope="col" class="py-1.5 text-right font-semibold">100 {{ unit() }}</th>
+              <th scope="col" class="py-1.5 text-right font-semibold">Portion</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-line/50">
+            @for (fact of facts(); track fact.key) {
+              <tr>
+                <th
+                  scope="row"
+                  class="py-1.5 text-left font-medium"
+                  [class]="fact.indent ? 'pl-3 text-muted' : 'text-fg'"
+                >
+                  {{ fact.label }}
+                </th>
+                <td class="py-1.5 text-right text-fg/85">{{ fact.per100 }} {{ fact.unit }}</td>
+                <td class="py-1.5 text-right font-semibold text-fg">
+                  {{ fact.portion }} {{ fact.unit }}
+                </td>
+              </tr>
+            }
+          </tbody>
+          @if (microFacts().length > 0) {
+            <tbody class="divide-y divide-line/50" data-micro-facts>
+              <tr>
+                <th
+                  scope="colgroup"
+                  colspan="3"
+                  class="pt-3 pb-1 text-left text-[11px] font-semibold tracking-wide text-muted uppercase"
+                >
+                  Vitamins &amp; minerals
+                </th>
+              </tr>
+              @for (fact of microFacts(); track fact.key) {
+                <tr>
+                  <th scope="row" class="py-1.5 text-left font-medium text-fg">
+                    {{ fact.label }}
+                  </th>
+                  <td class="py-1.5 text-right text-fg/85">{{ fact.per100 }}</td>
+                  <td class="py-1.5 text-right font-semibold text-fg">{{ fact.portion }}</td>
+                </tr>
+              }
+            </tbody>
+          }
+        </table>
+        @if (sizes().length > 0) {
+          <p class="mt-2 text-xs text-muted">{{ sizes().join(' · ') }}</p>
+        }
+      </div>
+    }
+  </section>
+
+  <section [attr.aria-labelledby]="ids.amount">
+    <div class="mb-1.5 flex items-baseline justify-between gap-3">
+      <span class="text-sm font-medium text-muted" [id]="ids.amount">Amount</span>
+      @if (servingLabel(); as serving) {
+        <span class="text-xs text-muted tabular-nums">1 serving = {{ serving }}</span>
+      }
+    </div>
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        class="btn btn-secondary btn-icon size-12"
+        [attr.aria-label]="'Less, fewer ' + (unit() === 'ml' ? 'millilitres' : 'grams')"
+        [disabled]="!canStepGrams(-1)"
+        (click)="stepGramsBy(-1)"
+      >
+        <app-icon name="minus" />
+      </button>
+      <div class="relative min-w-0 flex-1">
+        <app-number-input
+          inputClass="input h-12 pr-10 text-center text-xl font-bold tabular-nums"
+          [ariaLabel]="unit() === 'ml' ? 'Millilitres' : 'Grams'"
+          [inputId]="ids.grams"
+          [value]="grams()"
+          [decimals]="1"
+          [max]="maxGrams"
+          (valueChange)="setGrams($event)"
+        />
+        <span
+          class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm font-medium text-muted"
+          >{{ unit() }}</span
+        >
+      </div>
+      <button
+        type="button"
+        class="btn btn-secondary btn-icon size-12"
+        [attr.aria-label]="'More, more ' + (unit() === 'ml' ? 'millilitres' : 'grams')"
+        [disabled]="!canStepGrams(1)"
+        (click)="stepGramsBy(1)"
+      >
+        <app-icon name="plus" />
+      </button>
+    </div>
+
+    <div
+      class="mt-2 grid gap-1.5"
+      role="group"
+      aria-label="Quick amounts"
+      [style.grid-template-columns]="'repeat(' + chips().length + ', minmax(0, 1fr))'"
+    >
+      @for (chip of chips(); track chip.id) {
+        <button
+          type="button"
+          class="flex min-h-11 flex-col items-center justify-center rounded-xl border px-1 py-1 text-sm leading-4 font-semibold tabular-nums transition active:scale-95"
+          [class]="
+            chip.selected
+              ? 'border-brand bg-brand/15 text-brand'
+              : 'border-line/70 bg-surface text-fg hover:bg-surface-2'
+          "
+          [attr.aria-pressed]="chip.selected"
+          (click)="pickChip(chip.grams)"
+        >
+          {{ chip.label }}
+          @if (chip.detail) {
+            <span class="text-[11px] font-medium opacity-70">{{ chip.detail }}</span>
+          }
+        </button>
+      }
+    </div>
+
+    @if (servingLabel()) {
+      <div
+        class="mt-2 flex items-center justify-between gap-3 rounded-xl bg-surface-2 py-1 pr-1 pl-3.5"
+      >
+        <span class="text-sm font-medium text-fg">Servings</span>
+        <div class="flex items-center gap-1">
+          <button
+            type="button"
+            class="btn btn-ghost btn-icon"
+            aria-label="Fewer servings"
+            [disabled]="!canStepServings(-1)"
+            (click)="stepServings(-1)"
+          >
+            <app-icon name="minus" [size]="18" />
+          </button>
+          <output class="min-w-18 text-center tabular-nums" aria-live="polite">
+            <span class="text-base font-bold text-fg">{{ servingsText() }}</span
+            >&ngsp;<span class="text-xs text-muted">{{ servingsUnit() }}</span>
+          </output>
+          <button
+            type="button"
+            class="btn btn-ghost btn-icon"
+            aria-label="More servings"
+            [disabled]="!canStepServings(1)"
+            (click)="stepServings(1)"
+          >
+            <app-icon name="plus" [size]="18" />
+          </button>
+        </div>
+      </div>
+    }
+    @if (!portionValid()) {
+      <p class="mt-1.5 text-center text-xs text-danger" role="alert">
+        Enter at least {{ minGrams }} {{ unit() }}.
+      </p>
+    }
+  </section>
+
+  <div
+    class="flex items-center justify-between gap-3 rounded-2xl bg-surface-2 px-3.5 py-2.5"
+    aria-live="polite"
+  >
+    <p class="flex items-baseline gap-1 tabular-nums">
+      <span class="text-2xl leading-7 font-bold tracking-tight text-fg">{{ kcal() }}</span
+      >&ngsp;<span class="text-sm font-medium text-muted">kcal</span>
+    </p>
+    <p class="flex items-center gap-3 text-xs font-semibold text-fg/85 tabular-nums">
+      @for (macro of macros; track macro.key) {
+        <span class="flex items-center gap-1">
+          <span class="size-1.5 rounded-full" [style.background-color]="macro.color"></span>
+          <span class="sr-only">{{ macro.label }}</span>
+          <span aria-hidden="true" class="text-muted">{{ macro.short }}</span>
+          {{ macroValue(macro.key) }}
+        </span>
+      }
+    </p>
+  </div>
+
+  <div>
+    <span class="label" [id]="ids.meal">Meal</span>
+    <app-meal-type-picker
+      [value]="mealType()"
+      [ariaLabel]="null"
+      [labelledBy]="ids.meal"
+      (picked)="pickMealType($event)"
+    />
+  </div>
+
+  <div>
+    <label class="label" [for]="ids.time">When</label>
+    <input
+      type="datetime-local"
+      class="input text-left tabular-nums [&::-webkit-date-and-time-value]:text-left"
+      [id]="ids.time"
+      [value]="dateTime()"
+      [attr.aria-invalid]="timing() ? null : true"
+      (input)="onDateTime($event)"
+      (change)="onDateTime($event)"
+    />
+    <app-after-midnight-note [value]="dateTime()" />
+    @if (!timing()) {
+      <p class="mt-1.5 text-xs text-danger">Choose a valid date and time.</p>
+    }
+  </div>
+
+  <div
+    class="sticky bottom-[calc(-1.25rem-env(safe-area-inset-bottom))] -mx-5 mb-[calc(-1.25rem-env(safe-area-inset-bottom))] flex flex-col gap-1 border-t border-line/70 bg-elevated px-5 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
+  >
+    <button
+      type="button"
+      class="btn btn-primary min-h-13 w-full text-base"
+      [disabled]="!canLog()"
+      (click)="log()"
+    >
+      @if (busy()) {
+        <app-spinner [size]="18" label="Logging" />
+        Logging…
+      } @else {
+        <app-icon name="check" [strokeWidth]="2.5" />
+        Log · {{ kcal() }} kcal
+      }
+    </button>
+    <div class="grid grid-cols-2 gap-1">
+      <button
+        type="button"
+        class="btn btn-ghost min-h-11 text-sm text-muted"
+        [disabled]="busy()"
+        (click)="editValues.emit()"
+      >
+        <app-icon name="edit" [size]="16" />
+        Edit values
+      </button>
+      <button
+        type="button"
+        class="btn btn-ghost min-h-11 text-sm text-muted"
+        [disabled]="busy()"
+        (click)="scanAgain.emit()"
+      >
+        <app-icon name="barcode" [size]="16" />
+        Scan another
+      </button>
+    </div>
+  </div>
+</div>

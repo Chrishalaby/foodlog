@@ -1,0 +1,85 @@
+<header class="px-4 pt-4 pb-3">
+  <h1
+    class="text-[22px] leading-7 font-bold tracking-tight text-fg outline-none"
+    tabindex="-1"
+    data-autofocus
+  >
+    {{ stage() }}
+  </h1>
+  <p class="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-muted tabular-nums">
+    <span class="inline-flex items-center gap-1">
+      <app-icon name="clock" [size]="14" />
+      {{ seconds() }} s
+    </span>
+    <span aria-hidden="true">·</span>
+    <span>Usually 10–20 s</span>
+    @if (precise()) {
+      <span aria-hidden="true">·</span>
+      <span class="font-semibold text-accent">Precise model</span>
+    }
+  </p>
+  <p class="sr-only" role="status">{{ stage() }}</p>
+</header>
+
+<div class="flex flex-col gap-5 px-4 pb-24">
+  @if (store.analyzingPhotoUrl(); as url) {
+    <div
+      class="relative aspect-[4/3] overflow-hidden rounded-card border border-line/70 bg-surface-2 shadow-soft"
+    >
+      <img
+        class="size-full scale-105 object-cover blur-[1px] saturate-[0.85]"
+        alt="Photo being analyzed"
+        decoding="async"
+        [src]="url"
+      />
+      <div class="absolute inset-0 bg-bg/25"></div>
+      <div class="scan-band" aria-hidden="true"></div>
+      <div class="scan-frame" aria-hidden="true"></div>
+      @if (extraPhotos() > 0) {
+        <span
+          class="absolute top-3 right-3 flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur"
+        >
+          <app-icon name="image" [size]="13" />
+          +{{ extraPhotos() }} {{ extraPhotos() === 1 ? 'photo' : 'photos' }}
+        </span>
+      }
+    </div>
+  } @else {
+    <figure
+      class="relative overflow-hidden rounded-card border border-line/70 bg-surface p-4 shadow-soft"
+    >
+      <app-icon class="text-muted" name="text" />
+      <blockquote class="mt-2 text-[15px] leading-relaxed text-fg/90">{{ quote() }}</blockquote>
+      <div class="scan-band" aria-hidden="true"></div>
+    </figure>
+  }
+
+  <div
+    class="h-1.5 overflow-hidden rounded-full bg-surface-2"
+    role="progressbar"
+    aria-label="Analysis progress"
+    aria-valuemin="0"
+    aria-valuemax="100"
+    [attr.aria-valuenow]="progress()"
+  >
+    <div
+      class="h-full rounded-full bg-brand transition-[width] duration-500 ease-out"
+      [style.width.%]="progress()"
+    ></div>
+  </div>
+
+  @for (text of [tip()]; track text) {
+    <p
+      class="flex animate-fade-in items-start gap-2.5 rounded-2xl bg-surface-2 p-3.5 text-sm leading-snug text-fg/85"
+    >
+      <app-icon class="mt-px text-brand" name="sparkles" [size]="18" />
+      {{ text }}
+    </p>
+  }
+</div>
+
+<app-sticky-actions>
+  <button type="button" class="btn btn-secondary min-h-13 w-full text-base" (click)="cancel.emit()">
+    Cancel
+  </button>
+</app-sticky-actions>

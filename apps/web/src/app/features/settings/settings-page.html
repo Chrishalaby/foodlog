@@ -1,0 +1,118 @@
+<app-page-header title="Settings" subtitle="Profile, targets, AI and your data" />
+
+<nav class="no-scrollbar flex gap-2 overflow-x-auto px-4 pb-3" aria-label="Settings sections">
+  @for (link of jumpLinks(); track link.id) {
+    <button
+      type="button"
+      class="chip min-h-11 shrink-0 border border-line/60 px-4 text-sm text-fg transition active:scale-95"
+      (click)="scrollToSection(link.id)"
+    >
+      {{ link.label }}
+    </button>
+  }
+</nav>
+
+<div class="flex flex-col gap-4 px-4" [class.pb-28]="dirty()">
+  <app-admin-entry />
+  <app-my-foods-entry />
+  <app-notes-entry />
+  @switch (loadState()) {
+    @case ('loading') {
+      <div class="flex flex-col gap-4" aria-hidden="true">
+        @for (i of [0, 1, 2]; track i) {
+          <div class="card flex flex-col gap-3 p-4">
+            <div class="flex items-center gap-3">
+              <app-skeleton class="size-9" />
+              <app-skeleton shape="text" class="w-1/3" />
+            </div>
+            <app-skeleton class="h-11" />
+            <app-skeleton class="h-11" />
+            <app-skeleton class="h-24" />
+          </div>
+        }
+      </div>
+      <span class="sr-only" role="status">Loading settings…</span>
+    }
+    @case ('error') {
+      <div class="card flex flex-col items-center gap-3 px-5 py-8 text-center" role="alert">
+        <span
+          class="flex size-12 items-center justify-center rounded-2xl bg-danger/12 text-danger"
+          aria-hidden="true"
+        >
+          <app-icon name="alert" [size]="24" />
+        </span>
+        <div>
+          <p class="font-semibold text-fg">Settings unavailable</p>
+          <p class="mt-1 text-sm text-muted">{{ loadError() }}</p>
+        </div>
+        <button type="button" class="btn btn-primary" (click)="load()">
+          <app-icon name="refresh" [size]="18" />
+          Try again
+        </button>
+      </div>
+    }
+    @case ('ready') {
+      <app-profile-section [form]="profileForm" [preview]="preview()" [adaptive]="adaptiveTdee()" />
+      <app-body-section
+        [metrics]="bodyMetrics()"
+        [weights]="weightSummary()"
+        [state]="weightsState()"
+        [goal]="model().goal"
+        (retry)="retryWeights()"
+      />
+      <app-targets-section
+        [form]="profileForm"
+        [autoValues]="autoTargets()"
+        [warnings]="targetWarnings()"
+      />
+      <app-day-section [form]="profileForm" [weightKg]="previewInput().weightKg" />
+      @if (aiConfig(); as ai) {
+        <app-ai-section [form]="profileForm" [ai]="ai" [monthToDateUsd]="monthToDateUsd()" />
+      }
+    }
+  }
+
+  <app-usage-section [modelLabels]="modelLabels()" [currentMonth]="currentUsage" />
+  <app-appearance-section
+    [theme]="themeValue()"
+    [synced]="loadState() === 'ready'"
+    (themeChange)="onThemeChange($event)"
+  />
+  <app-hidden-foods-section />
+  <app-data-section />
+  <app-install-section />
+  <app-account-section
+    [hasUnsavedChanges]="dirty()"
+    (passwordChanged)="devices.load({ silent: true })"
+  />
+  <app-devices-section #devices />
+  <app-about-section />
+</div>
+
+@if (dirty()) {
+  <div
+    class="pointer-events-none fixed inset-x-0 z-30 flex justify-center px-4"
+    role="region"
+    aria-label="Unsaved changes"
+    data-toast-clearance
+    [style.bottom]="saveBarBottom()"
+  >
+    <div
+      class="pointer-events-auto flex w-full max-w-2xl animate-pop-in items-center gap-2 rounded-2xl border border-line/70 bg-elevated/95 py-2 pr-2 pl-4 shadow-lifted backdrop-blur-xl"
+    >
+      <div class="min-w-0 flex-1" aria-live="polite">
+        <p class="text-sm font-semibold text-fg">Unsaved changes</p>
+        <p class="truncate text-xs text-muted">{{ changeSummary() }}</p>
+      </div>
+      <button type="button" class="btn btn-ghost px-3" [disabled]="saving()" (click)="discard()">
+        Discard
+      </button>
+      <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="saveChanges()">
+        @if (saving()) {
+          <app-spinner [size]="18" label="Saving" />
+        }
+        Save
+      </button>
+    </div>
+  </div>
+}

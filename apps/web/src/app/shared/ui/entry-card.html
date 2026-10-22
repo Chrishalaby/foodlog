@@ -1,0 +1,124 @@
+<article class="card flex items-center gap-1 py-2.5 pr-1.5 pl-2.5">
+  <button
+    type="button"
+    class="flex min-h-14 min-w-0 flex-1 items-center gap-3 rounded-2xl p-0.5 text-left transition active:opacity-80"
+    [attr.aria-label]="summaryLabel()"
+    (click)="opened.emit(entry())"
+  >
+    @if (thumbUrl(); as src) {
+      <span class="relative size-14 shrink-0">
+        <img
+          class="size-14 rounded-xl bg-surface-2 object-cover"
+          [src]="src"
+          alt=""
+          loading="lazy"
+          decoding="async"
+          width="56"
+          height="56"
+        />
+        @if (extraPhotos() > 0) {
+          <span
+            class="absolute -right-1.5 -bottom-1.5 min-w-6 rounded-full bg-black/75 px-1.5 text-center text-[11px] leading-5 font-bold text-white tabular-nums ring-2 ring-surface"
+            role="img"
+            [attr.aria-label]="photoCount()"
+            [title]="photoCount()"
+            >+{{ extraPhotos() }}</span
+          >
+        }
+      </span>
+    } @else {
+      <div
+        class="flex size-14 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-muted"
+      >
+        <app-icon [name]="sourceIcon()" [size]="24" />
+      </div>
+    }
+    <div class="min-w-0 flex-1">
+      <p class="truncate text-[15px] leading-5 font-semibold text-fg" [id]="nameId">
+        {{ entry().name }}
+      </p>
+      @if (amount(); as text) {
+        <p
+          class="mt-0.5 truncate text-xs leading-4 font-medium text-fg/75 tabular-nums"
+          data-entry-amount
+        >
+          {{ text }}
+        </p>
+      }
+      <div class="mt-1 flex items-center gap-2 text-xs text-muted">
+        @if (showMealType()) {
+          <app-meal-type-badge [mealType]="entry().mealType" />
+        }
+        <span class="tabular-nums">{{ time() }}</span>
+      </div>
+      <div class="mt-1.5 flex items-center gap-3 text-xs text-muted tabular-nums">
+        @for (macro of macros(); track macro.key) {
+          <span class="inline-flex items-baseline gap-1">
+            <span class="font-bold" aria-hidden="true" [style.color]="macro.color">{{
+              macro.letter
+            }}</span>
+            <span class="text-fg/85">{{ macro.value }}</span>
+          </span>
+        }
+      </div>
+    </div>
+    <div class="shrink-0 pl-1 text-right">
+      <div class="text-xl leading-6 font-bold tracking-tight text-fg tabular-nums">
+        {{ calories() }}
+      </div>
+      <div class="text-[11px] font-medium text-muted">kcal</div>
+    </div>
+  </button>
+  @if (showActions()) {
+    <button
+      type="button"
+      class="btn btn-ghost btn-icon text-muted"
+      aria-label="Entry actions"
+      aria-haspopup="dialog"
+      [attr.aria-expanded]="menuOpen()"
+      [attr.aria-describedby]="nameId"
+      (click)="menuOpen.set(true)"
+    >
+      <app-icon name="more" [size]="22" [strokeWidth]="2.75" />
+    </button>
+  }
+</article>
+
+@if (showActions()) {
+  <app-bottom-sheet [(open)]="menuOpen" [title]="entry().name">
+    <div class="flex flex-col gap-1">
+      <button
+        type="button"
+        class="btn btn-ghost h-13 justify-start gap-3 px-3"
+        (click)="run('edit')"
+      >
+        <app-icon name="edit" class="text-muted" />
+        Edit entry
+      </button>
+      <button
+        type="button"
+        class="btn btn-ghost h-13 justify-start gap-3 px-3"
+        (click)="run('logAgain')"
+      >
+        <app-icon name="copy" class="text-muted" />
+        Log again
+      </button>
+      <button
+        type="button"
+        class="btn btn-ghost h-13 justify-start gap-3 px-3"
+        (click)="run('favorite')"
+      >
+        <app-icon name="star" class="text-muted" />
+        Save as favorite
+      </button>
+      <button
+        type="button"
+        class="btn btn-ghost h-13 justify-start gap-3 px-3 text-danger"
+        (click)="run('delete')"
+      >
+        <app-icon name="trash" />
+        Delete
+      </button>
+    </div>
+  </app-bottom-sheet>
+}

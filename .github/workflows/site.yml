@@ -1,0 +1,48 @@
+name: Project page
+
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", ".github/workflows/site.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Fill in the repository and demo links
+        env:
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+          DEMO_URL: ${{ vars.DEMO_URL }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            const file = "site/index.html";
+            const attr = (value) => (value ?? "").replace(/"/g, "&quot;");
+            const html = fs
+              .readFileSync(file, "utf8")
+              .replace("data-repo=\"\"", `data-repo="${attr(process.env.REPO_URL)}"`)
+              .replace("data-demo=\"\"", `data-demo="${attr(process.env.DEMO_URL)}"`);
+            fs.writeFileSync(file, html);
+          '
+          grep -o 'data-repo="[^"]*" data-demo="[^"]*"' site/index.html
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

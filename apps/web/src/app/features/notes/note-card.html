@@ -1,0 +1,157 @@
+<article
+  class="flex items-start gap-0.5"
+  [attr.data-note]="note().key"
+  [attr.data-state]="note().state"
+  [attr.aria-label]="label()"
+>
+  <button
+    type="button"
+    role="checkbox"
+    class="-ml-2.5 flex size-11 shrink-0 items-center justify-center rounded-full transition active:scale-90 disabled:opacity-40"
+    [attr.aria-checked]="note().done"
+    [attr.aria-label]="toggleLabel()"
+    [disabled]="!sent()"
+    (click)="toggled.emit()"
+  >
+    <span
+      class="flex size-6 items-center justify-center rounded-full border-2 transition"
+      [class]="
+        note().done ? 'border-brand bg-brand text-brand-fg' : 'border-field-line text-transparent'
+      "
+    >
+      <app-icon name="check" [size]="14" [strokeWidth]="3" />
+    </span>
+  </button>
+
+  <div
+    #press="longPress"
+    appLongPress
+    class="min-w-0 flex-1 rounded-2xl border border-line/70 shadow-soft transition [-webkit-touch-callout:none] pointer-coarse:select-none"
+    [class]="press.pressing() && sent() ? 'bg-surface-2' : 'bg-surface'"
+    [class.opacity-60]="note().done"
+    [longPressDisabled]="!sent()"
+    (longPress)="menu.emit()"
+    (click)="onClick($event, press)"
+  >
+    @if (note().photos.length === 1) {
+      @for (photo of note().photos; track $index) {
+        <button
+          type="button"
+          class="block w-full overflow-hidden rounded-t-[15px] bg-surface-2"
+          [attr.aria-label]="photoLabel($index)"
+          (click)="openPhoto($index, press)"
+        >
+          <img
+            class="max-h-80 w-full object-cover"
+            alt=""
+            loading="lazy"
+            decoding="async"
+            draggable="false"
+            [attr.src]="photo.url || null"
+            [attr.width]="photo.width"
+            [attr.height]="photo.height"
+          />
+        </button>
+      }
+    } @else if (note().photos.length > 1) {
+      <div class="grid grid-cols-2 gap-0.5 overflow-hidden rounded-t-[15px]">
+        @for (photo of note().photos; track $index) {
+          <button
+            type="button"
+            class="block bg-surface-2"
+            [class]="tileClass($index)"
+            [attr.aria-label]="photoLabel($index)"
+            (click)="openPhoto($index, press)"
+          >
+            <img
+              class="size-full object-cover"
+              alt=""
+              loading="lazy"
+              decoding="async"
+              draggable="false"
+              [attr.src]="photo.thumbUrl || null"
+            />
+          </button>
+        }
+      </div>
+    }
+
+    @if (segments().length > 0) {
+      <p
+        class="px-3.5 pt-2.5 text-[15px] leading-[1.4] break-words whitespace-pre-wrap text-fg"
+        data-note-text
+        [class.line-through]="note().done"
+      >
+        @for (segment of segments(); track $index) {
+          @if (segment.href; as href) {
+            <a
+              class="font-medium text-accent underline underline-offset-2"
+              target="_blank"
+              rel="noopener noreferrer"
+              [href]="href"
+              >{{ segment.text }}</a
+            >
+          } @else {
+            <span>{{ segment.text }}</span>
+          }
+        }
+      </p>
+    }
+
+    <div class="flex min-h-9 items-center gap-2 pr-1 pl-3.5">
+      <time class="text-xs text-muted tabular-nums" [attr.datetime]="note().createdAt">{{
+        time()
+      }}</time>
+      @switch (note().state) {
+        @case ('sending') {
+          <span class="flex items-center gap-1.5 text-xs font-medium text-muted" role="status">
+            <app-spinner [size]="12" label="Sending" />
+            Sending…
+          </span>
+        }
+        @case ('failed') {
+          <span class="flex items-center gap-1 text-xs font-semibold text-danger">
+            <app-icon name="alert" [size]="13" />
+            Not sent
+          </span>
+        }
+      }
+      <span class="flex-1"></span>
+      @if (sent()) {
+        <button
+          type="button"
+          class="relative flex size-8 items-center justify-center rounded-full text-muted transition before:absolute before:-inset-1.5 before:content-[''] hover:bg-surface-2 hover:text-fg active:bg-surface-2"
+          aria-label="More actions"
+          aria-haspopup="dialog"
+          (click)="openMenu(press)"
+        >
+          <app-icon name="more-horizontal" [size]="20" [strokeWidth]="2.5" />
+        </button>
+      }
+    </div>
+
+    @if (note().state === 'failed') {
+      <div class="px-3.5 pb-3">
+        <p class="text-xs leading-snug text-muted" role="alert">{{ note().error }}</p>
+        <div class="mt-2 flex gap-2">
+          <button
+            type="button"
+            class="btn btn-secondary flex-1 px-3 text-sm"
+            (click)="retried.emit()"
+          >
+            <app-icon name="refresh" [size]="16" />
+            Retry
+          </button>
+          <button
+            type="button"
+            class="btn btn-ghost flex-1 px-3 text-sm text-danger"
+            (click)="discarded.emit()"
+          >
+            <app-icon name="trash" [size]="16" />
+            Discard
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+</article>

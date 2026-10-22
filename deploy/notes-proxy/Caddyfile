@@ -1,0 +1,12 @@
+{
+	admin off
+	auto_https off
+}
+
+:{$PORT:8080} {
+	reverse_proxy {$UPSTREAM} {
+		lb_try_duration 15s
+		header_up X-Forwarded-For {header.X-Real-IP}
+		header_up X-Forwarded-Proto https
+	}
+}

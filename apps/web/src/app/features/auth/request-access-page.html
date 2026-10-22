@@ -1,0 +1,131 @@
+<app-auth-layout [title]="title()" [subtitle]="subtitle()">
+  @if (hasRequest()) {
+    @if (showSent()) {
+      <div
+        class="mb-5 flex animate-pop-in items-center gap-3 rounded-2xl bg-brand/12 px-3.5 py-3 text-sm text-fg"
+        role="status"
+      >
+        <span
+          class="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand text-brand-fg"
+          aria-hidden="true"
+        >
+          <app-icon name="check" [size]="18" [strokeWidth]="2.5" />
+        </span>
+        <span class="leading-snug">
+          <span class="font-semibold">Sent!</span> It’s waiting in the owner’s admin panel.
+        </span>
+      </div>
+    }
+    <app-access-request-card />
+    <div class="mt-5 flex flex-col gap-1 border-t border-line/70 pt-4">
+      <a class="btn btn-ghost min-h-11 w-full text-brand" [routerLink]="loginPath">
+        <app-icon name="chevron-left" [size]="18" />
+        Back to sign in
+      </a>
+      <button
+        type="button"
+        class="btn btn-ghost min-h-11 w-full text-sm text-muted"
+        (click)="startOver()"
+      >
+        Send a new request instead
+      </button>
+    </div>
+  } @else {
+    <form class="flex flex-col gap-4" aria-label="Request access" [formRoot]="requestForm">
+      @if (error(); as message) {
+        <app-form-alert [message]="message" />
+      }
+
+      <div>
+        <label class="label" for="request-name">Your name</label>
+        <input
+          id="request-name"
+          class="input"
+          autocomplete="name"
+          autocapitalize="words"
+          enterkeyhint="next"
+          placeholder="So the owner knows it’s you"
+          [formField]="requestForm.name"
+          [attr.aria-invalid]="requestForm.name().touched() && requestForm.name().invalid()"
+        />
+        @if (requestForm.name().touched() && requestForm.name().errors()[0]; as err) {
+          <p class="mt-1.5 text-xs text-danger">{{ err.message }}</p>
+        }
+      </div>
+
+      <div>
+        <label class="label" for="request-email">Email</label>
+        <input
+          id="request-email"
+          class="input"
+          type="email"
+          inputmode="email"
+          autocomplete="email"
+          autocapitalize="off"
+          spellcheck="false"
+          enterkeyhint="next"
+          placeholder="you@example.com"
+          aria-describedby="request-email-hint"
+          [formField]="requestForm.email"
+          [attr.aria-invalid]="requestForm.email().touched() && requestForm.email().invalid()"
+        />
+        @if (requestForm.email().touched() && requestForm.email().errors()[0]; as err) {
+          <p class="mt-1.5 text-xs text-danger">{{ err.message }}</p>
+        } @else {
+          <p id="request-email-hint" class="mt-1.5 text-xs text-muted">
+            You’ll sign in with this. No emails are sent.
+          </p>
+        }
+      </div>
+
+      <div>
+        <div class="flex items-baseline justify-between gap-2">
+          <label class="label" for="request-message">
+            Note <span class="font-normal">(optional)</span>
+          </label>
+          <span
+            class="text-xs tabular-nums"
+            [class.text-danger]="messageLength() > messageMax"
+            [class.text-muted]="messageLength() <= messageMax"
+            aria-hidden="true"
+          >
+            {{ messageLength() }}/{{ messageMax }}
+          </span>
+        </div>
+        <textarea
+          id="request-message"
+          class="input min-h-24 resize-none leading-snug"
+          rows="3"
+          placeholder="e.g. Hi! It’s Maya from the gym."
+          [formField]="requestForm.message"
+          [attr.aria-invalid]="requestForm.message().touched() && requestForm.message().invalid()"
+        ></textarea>
+        @if (requestForm.message().touched() && requestForm.message().errors()[0]; as err) {
+          <p class="mt-1.5 text-xs text-danger">{{ err.message }}</p>
+        }
+      </div>
+
+      <button
+        type="submit"
+        class="btn btn-primary mt-1 min-h-12 w-full text-base"
+        [disabled]="requestForm().submitting()"
+      >
+        @if (requestForm().submitting()) {
+          <app-spinner [size]="18" label="Sending request" />
+        }
+        Send request
+      </button>
+    </form>
+  }
+
+  @if (!hasRequest()) {
+    <p authFooter>
+      Already have an account?
+      <a
+        class="inline-flex min-h-11 items-center px-1 font-semibold text-brand"
+        [routerLink]="loginPath"
+        >Sign in</a
+      >
+    </p>
+  }
+</app-auth-layout>

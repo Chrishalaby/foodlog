@@ -1,0 +1,9 @@
+@reference '../../../../styles.css';
+
+.draft-action {
+  @apply flex min-h-14 w-full items-center gap-3.5 rounded-2xl px-3 py-2 text-left transition hover:bg-surface-2 active:bg-surface-2;
+}
+
+.draft-action-icon {
+  @apply flex size-9 shrink-0 items-center justify-center rounded-xl;
+}

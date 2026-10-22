@@ -1,0 +1,21 @@
+.step-forward {
+  animation: step-in-forward 280ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.step-back {
+  animation: step-in-back 280ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+@keyframes step-in-forward {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+}
+
+@keyframes step-in-back {
+  from {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
+}

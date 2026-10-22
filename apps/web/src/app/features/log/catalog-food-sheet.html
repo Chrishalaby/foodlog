@@ -1,0 +1,178 @@
+<app-bottom-sheet [(open)]="open" [ariaLabel]="food()?.name ?? 'Food'">
+  @if (food(); as current) {
+    <div class="flex flex-col gap-4">
+      <header class="flex items-start gap-3">
+        <span
+          class="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-accent/12 text-accent"
+          aria-hidden="true"
+        >
+          <app-icon name="book" [size]="26" />
+        </span>
+        <div class="min-w-0 flex-1 pt-0.5">
+          <h2 class="line-clamp-3 text-lg leading-6 font-semibold tracking-tight break-words">
+            {{ current.name }}
+          </h2>
+          <p class="mt-0.5 truncate text-xs text-muted">{{ subtitle() }}</p>
+        </div>
+        <button
+          type="button"
+          class="btn btn-ghost btn-icon -mt-1 -mr-2 text-muted"
+          aria-label="Close"
+          (click)="open.set(false)"
+        >
+          <app-icon name="close" [size]="22" />
+        </button>
+      </header>
+
+      @if (amount(); as amt) {
+        <app-catalog-amount-picker
+          aria-label="Amount"
+          [food]="current"
+          [amount]="amt"
+          (amountChange)="amount.set($event)"
+        />
+      }
+
+      <div
+        class="flex items-center justify-between gap-3 rounded-2xl bg-surface-2 px-3.5 py-2.5"
+        aria-live="polite"
+      >
+        <p class="flex items-baseline gap-1 tabular-nums">
+          <span class="text-2xl leading-7 font-bold tracking-tight text-fg">{{ kcal() }}</span
+          >&ngsp;<span class="text-sm font-medium text-muted">kcal</span>
+        </p>
+        <p class="flex items-center gap-3 text-xs font-semibold text-fg/85 tabular-nums">
+          @for (macro of macros; track macro.key) {
+            <span class="flex items-center gap-1">
+              <span class="size-1.5 rounded-full" [style.background-color]="macro.color"></span>
+              <span class="sr-only">{{ macro.label }}</span>
+              <span aria-hidden="true" class="text-muted">{{ macro.short }}</span>
+              {{ macroValue(macro.key) }}
+            </span>
+          }
+        </p>
+      </div>
+
+      @if (missingText(); as missing) {
+        <p class="-mt-2 flex items-start gap-1.5 text-xs leading-snug text-warn">
+          <app-icon class="mt-px shrink-0" name="info" [size]="14" />
+          {{ missing }}
+        </p>
+      }
+
+      <section>
+        <button
+          type="button"
+          class="flex min-h-11 w-full items-center justify-between rounded-xl text-sm font-semibold text-fg"
+          [attr.aria-expanded]="showDetails()"
+          [attr.aria-controls]="ids.details"
+          (click)="toggleDetails()"
+        >
+          Nutrition details
+          <app-icon class="text-muted" [name]="showDetails() ? 'chevron-up' : 'chevron-down'" />
+        </button>
+        @if (showDetails()) {
+          <div class="mt-1 flex flex-col gap-4" [id]="ids.details">
+            <table class="w-full text-sm tabular-nums">
+              <thead>
+                <tr class="text-xs text-muted">
+                  <th class="pb-1.5 text-left font-medium" scope="col">Nutrient</th>
+                  <th class="pb-1.5 text-right font-medium" scope="col">This amount</th>
+                  <th class="pb-1.5 text-right font-medium" scope="col">Per 100 g</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-line/50">
+                @for (row of nutrientRows(); track row.key) {
+                  <tr [class.text-muted]="row.missing">
+                    <th class="py-1.5 text-left font-medium" scope="row">
+                      {{ row.label }}
+                      @if (row.missing) {
+                        <span class="text-xs font-normal">(not reported)</span>
+                      }
+                    </th>
+                    <td class="py-1.5 text-right font-semibold">{{ row.amount }}</td>
+                    <td class="py-1.5 text-right text-muted">{{ row.per100 }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+            @if (item()?.micros; as micros) {
+              <app-micros-panel [micros]="micros" [targets]="microTargets" scope="meal" />
+            }
+            <p class="text-xs leading-snug text-muted">
+              {{ sourceText() }}.
+              @if (sourceUrl(); as url) {
+                <a
+                  class="font-semibold text-brand"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  [href]="url"
+                  >View at USDA</a
+                >
+              }
+            </p>
+          </div>
+        }
+      </section>
+
+      @if (mode() === 'log') {
+        <div>
+          <span class="label" [id]="ids.meal">Meal</span>
+          <app-meal-type-picker
+            [value]="mealType()"
+            [ariaLabel]="null"
+            [labelledBy]="ids.meal"
+            (picked)="pickMealType($event)"
+          />
+        </div>
+
+        <div>
+          <label class="label" [for]="ids.time">When</label>
+          <input
+            type="datetime-local"
+            class="input text-left tabular-nums [&::-webkit-date-and-time-value]:text-left"
+            [id]="ids.time"
+            [value]="dateTime()"
+            [attr.aria-invalid]="timing() ? null : true"
+            (input)="onDateTime($event)"
+            (change)="onDateTime($event)"
+          />
+          <app-after-midnight-note [value]="dateTime()" />
+          @if (!timing()) {
+            <p class="mt-1.5 text-xs text-danger">Choose a valid date and time.</p>
+          }
+        </div>
+      }
+
+      <div
+        class="sticky bottom-[calc(-1.25rem-env(safe-area-inset-bottom))] -mx-5 mb-[calc(-1.25rem-env(safe-area-inset-bottom))] flex flex-col gap-1 border-t border-line/70 bg-elevated px-5 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
+      >
+        <button
+          type="button"
+          class="btn btn-primary min-h-13 w-full text-base"
+          [disabled]="!canSubmit()"
+          (click)="submit()"
+        >
+          @if (busy()) {
+            <app-spinner [size]="18" label="Logging" />
+            Logging…
+          } @else {
+            <app-icon [name]="mode() === 'pick' ? 'plus' : 'check'" [strokeWidth]="2.5" />
+            <span class="min-w-0 truncate">{{ submitLabel() }}</span>
+          }
+        </button>
+        @if (mode() === 'log') {
+          <button
+            type="button"
+            class="btn btn-ghost min-h-11 w-full text-sm text-muted"
+            [disabled]="locked() || !amountValid()"
+            (click)="editFirst()"
+          >
+            <app-icon name="edit" [size]="16" />
+            Edit before saving
+          </button>
+        }
+      </div>
+    </div>
+  }
+</app-bottom-sheet>

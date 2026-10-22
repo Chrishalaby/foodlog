@@ -1,0 +1,927 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>
+      FoodLog: free, self-hosted food tracker with a built-in food database
+    </title>
+    <meta
+      name="description"
+      content="A free, open-source food tracker you host yourself. 13,331 foods built in, optional AI photo estimates with your own key, no subscription, no ads and no tracking."
+    />
+    <meta
+      property="og:title"
+      content="FoodLog: know what you eat, own what you log"
+    />
+    <meta
+      property="og:description"
+      content="Free and open source. 13,331 foods built in, optional AI photo estimates, your data on your server."
+    />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" content="#0a0d12" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <style>
+      :root {
+        --bg: #0a0d12;
+        --surface: #12161d;
+        --surface-2: #1a1f28;
+        --fg: #eef1f5;
+        --muted: #9aa4b2;
+        --line: #262d38;
+        --brand: #4ade80;
+        --brand-strong: #6ee79b;
+        --brand-fg: #03250f;
+        --accent: #8b9cff;
+        --protein: #ff6b8b;
+        --carbs: #ffe066;
+        --fat: #5cb8ff;
+        --radius: 20px;
+        color-scheme: dark;
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #f4f6f9;
+          --surface: #ffffff;
+          --surface-2: #eef1f5;
+          --fg: #0d131a;
+          --muted: #556070;
+          --line: #e0e5ec;
+          --brand: #127336;
+          --brand-strong: #0e5f2b;
+          --brand-fg: #ffffff;
+          --accent: #4955d4;
+          color-scheme: light;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          "Helvetica Neue",
+          Arial,
+          sans-serif;
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+      }
+      a {
+        color: inherit;
+      }
+      .wrap {
+        width: 100%;
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 0 20px;
+      }
+      header.top {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: color-mix(in srgb, var(--bg) 85%, transparent);
+        backdrop-filter: blur(14px);
+        border-bottom: 1px solid
+          color-mix(in srgb, var(--line) 60%, transparent);
+      }
+      .top .wrap {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        min-height: 60px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 700;
+        text-decoration: none;
+        font-size: 17px;
+      }
+      .brand img {
+        width: 28px;
+        height: 28px;
+      }
+      .top nav {
+        display: flex;
+        gap: 18px;
+        margin-left: auto;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .top nav a {
+        text-decoration: none;
+      }
+      .top nav a:hover {
+        color: var(--fg);
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 48px;
+        padding: 0 22px;
+        border-radius: 999px;
+        font-weight: 650;
+        font-size: 15px;
+        text-decoration: none;
+        border: 1px solid transparent;
+        transition:
+          transform 0.15s,
+          background 0.15s;
+      }
+      .btn:active {
+        transform: scale(0.97);
+      }
+      .btn-primary {
+        background: var(--brand);
+        color: var(--brand-fg);
+      }
+      .btn-primary:hover {
+        background: var(--brand-strong);
+      }
+      .btn-ghost {
+        border-color: var(--line);
+        background: var(--surface);
+      }
+      .btn-ghost:hover {
+        background: var(--surface-2);
+      }
+      .hero {
+        padding: 72px 0 40px;
+        text-align: center;
+      }
+      .hero h1 {
+        margin: 0;
+        font-size: clamp(40px, 8vw, 76px);
+        line-height: 1.02;
+        letter-spacing: -0.035em;
+        font-weight: 800;
+      }
+      .hero h1 span {
+        display: block;
+        color: var(--muted);
+      }
+      .hero p.lead {
+        max-width: 640px;
+        margin: 24px auto 0;
+        font-size: clamp(17px, 2.3vw, 20px);
+        color: var(--muted);
+      }
+      .hero .actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 12px;
+        margin-top: 32px;
+      }
+      .pills {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 28px;
+        padding: 0;
+        list-style: none;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .pills li {
+        padding: 6px 12px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--surface);
+      }
+      .phone {
+        width: min(320px, 78vw);
+        margin: 48px auto 0;
+        padding: 10px;
+        border-radius: 44px;
+        background: linear-gradient(160deg, #2a3140, #10141b);
+        box-shadow:
+          0 40px 120px -30px color-mix(in srgb, var(--brand) 35%, transparent),
+          0 20px 60px -20px rgba(0, 0, 0, 0.6);
+      }
+      .phone img {
+        display: block;
+        width: 100%;
+        border-radius: 34px;
+      }
+      section {
+        padding: 72px 0;
+      }
+      .eyebrow {
+        margin: 0 0 8px;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--brand);
+      }
+      h2 {
+        margin: 0;
+        font-size: clamp(28px, 4.5vw, 44px);
+        letter-spacing: -0.025em;
+        line-height: 1.1;
+      }
+      .section-lead {
+        max-width: 640px;
+        margin: 14px 0 0;
+        color: var(--muted);
+        font-size: 17px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+        margin-top: 36px;
+      }
+      .card {
+        padding: 24px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--surface);
+      }
+      .card h3 {
+        margin: 14px 0 8px;
+        font-size: 19px;
+        letter-spacing: -0.01em;
+      }
+      .card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 15px;
+      }
+      .dot {
+        display: inline-flex;
+        width: 40px;
+        height: 40px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        font-size: 20px;
+      }
+      .d1 {
+        background: color-mix(in srgb, var(--brand) 16%, transparent);
+      }
+      .d2 {
+        background: color-mix(in srgb, var(--accent) 18%, transparent);
+      }
+      .d3 {
+        background: color-mix(in srgb, var(--protein) 18%, transparent);
+      }
+      .d4 {
+        background: color-mix(in srgb, var(--carbs) 20%, transparent);
+      }
+      .d5 {
+        background: color-mix(in srgb, var(--fat) 18%, transparent);
+      }
+      .feature-row {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 40px;
+        align-items: center;
+        margin-top: 56px;
+      }
+      @media (min-width: 860px) {
+        .feature-row {
+          grid-template-columns: 1fr 1fr;
+        }
+        .feature-row.flip .shot {
+          order: -1;
+        }
+      }
+      .feature-row h3 {
+        margin: 0;
+        font-size: clamp(24px, 3.2vw, 32px);
+        letter-spacing: -0.02em;
+        line-height: 1.15;
+      }
+      .feature-row p {
+        color: var(--muted);
+        font-size: 16px;
+      }
+      .feature-row ul {
+        margin: 16px 0 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 10px;
+      }
+      .feature-row li {
+        position: relative;
+        padding-left: 26px;
+        color: var(--fg);
+        font-size: 15px;
+      }
+      .feature-row li::before {
+        content: "";
+        position: absolute;
+        left: 2px;
+        top: 8px;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--brand);
+      }
+      .shot {
+        display: flex;
+        justify-content: center;
+      }
+      .shot img {
+        width: min(300px, 80vw);
+        border-radius: 32px;
+        border: 1px solid var(--line);
+        box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.6);
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 12px;
+        margin-top: 36px;
+      }
+      .stat {
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--surface);
+      }
+      .stat b {
+        display: block;
+        font-size: 30px;
+        letter-spacing: -0.02em;
+      }
+      .stat span {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .more {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 12px;
+        margin-top: 36px;
+      }
+      .more div {
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--surface);
+      }
+      .more b {
+        display: block;
+        font-size: 15px;
+      }
+      .more span {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .gallery {
+        display: flex;
+        gap: 16px;
+        margin-top: 36px;
+        padding-bottom: 12px;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+      }
+      .gallery figure {
+        flex: 0 0 auto;
+        margin: 0;
+        scroll-snap-align: center;
+      }
+      .gallery img {
+        width: 230px;
+        border-radius: 28px;
+        border: 1px solid var(--line);
+      }
+      .gallery figcaption {
+        margin-top: 8px;
+        text-align: center;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .choices {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 16px;
+        margin-top: 36px;
+      }
+      .choices .card h3 {
+        margin-top: 0;
+      }
+      .choices ul {
+        margin: 14px 0 20px;
+        padding-left: 18px;
+        color: var(--muted);
+        font-size: 15px;
+      }
+      pre {
+        margin: 0 0 16px;
+        padding: 14px 16px;
+        overflow-x: auto;
+        border-radius: 12px;
+        background: var(--surface-2);
+        font-size: 13px;
+        line-height: 1.7;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      footer {
+        padding: 48px 0 64px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 14px;
+      }
+      footer .wrap {
+        display: grid;
+        gap: 10px;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      @media (max-width: 640px) {
+        .top nav .optional {
+          display: none;
+        }
+        section {
+          padding: 56px 0;
+        }
+      }
+    </style>
+  </head>
+  <body data-repo="" data-demo="">
+    <header class="top">
+      <div class="wrap">
+        <a class="brand" href="#"><img src="favicon.svg" alt="" />FoodLog</a>
+        <nav aria-label="Sections">
+          <a class="optional" href="#features">Features</a>
+          <a class="optional" href="#screens">Screens</a>
+          <a href="#demo" data-needs="demo">Demo</a>
+          <a href="#get">Get it</a>
+          <a data-link="repo" href="#open-source">GitHub</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <div class="wrap hero">
+        <h1>Know what you eat.<span>Own what you log.</span></h1>
+        <p class="lead">
+          A free, open-source food tracker you run yourself. 13,331 foods built
+          in, photo estimates with your own AI key if you want them, and no
+          subscription, ads or tracking.
+        </p>
+        <div class="actions">
+          <a class="btn btn-primary" href="#get">Get FoodLog</a>
+          <a
+            class="btn btn-ghost"
+            data-link="demo"
+            data-needs="demo"
+            href="#demo"
+            >Try the live demo →</a
+          >
+        </div>
+        <ul class="pills" aria-label="Highlights">
+          <li>AGPL-3.0</li>
+          <li>Docker, amd64 and arm64</li>
+          <li>Works without AI</li>
+          <li>Installable on Android and iPhone</li>
+        </ul>
+        <div class="phone">
+          <img
+            src="screens/today.jpg"
+            alt="FoodLog's Today screen with calories and macros left for the day"
+          />
+        </div>
+      </div>
+
+      <section id="features">
+        <div class="wrap">
+          <p class="eyebrow">Features</p>
+          <h2>Made for logging every day, not once.</h2>
+          <p class="section-lead">
+            Most meals are things you have eaten before. FoodLog makes those one
+            tap, makes new foods quick and accurate, and keeps every number on
+            your own server.
+          </p>
+          <div class="grid">
+            <div class="card">
+              <span class="dot d1" aria-hidden="true">⚡</span>
+              <h3>Search first, one tap to log</h3>
+              <p>
+                Everything you ever logged is searchable, with last time's
+                portion. Type three letters and tap once. No AI call, no cost.
+              </p>
+            </div>
+            <div class="card">
+              <span class="dot d2" aria-hidden="true">📖</span>
+              <h3>13,331 foods built in</h3>
+              <p>
+                USDA FoodData Central ingredients and dishes as eaten, with full
+                nutrition, vitamins, minerals and household portions. Search
+                forgives typos.
+              </p>
+            </div>
+            <div class="card">
+              <span class="dot d3" aria-hidden="true">📷</span>
+              <h3>AI estimates, if you want them</h3>
+              <p>
+                Photo, nutrition label, voice and "my whole day" descriptions,
+                from OpenAI or any OpenAI-compatible server: Ollama, LM Studio,
+                OpenRouter or Gemini.
+              </p>
+            </div>
+            <div class="card">
+              <span class="dot d4" aria-hidden="true">🎯</span>
+              <h3>Accuracy over guesses</h3>
+              <p>
+                The model returns grams and per-100 g values, the server does
+                the maths and checks it. Your description always wins over what
+                the photo seems to show.
+              </p>
+            </div>
+            <div class="card">
+              <span class="dot d5" aria-hidden="true">▥</span>
+              <h3>Barcodes that learn</h3>
+              <p>
+                Your own products first, then Open Food Facts. If a pack is
+                unknown, scan its label once and the barcode is instant from
+                then on.
+              </p>
+            </div>
+            <div class="card">
+              <span class="dot d1" aria-hidden="true">⚖️</span>
+              <h3>A daily burn you can trust</h3>
+              <p>
+                A smoothed weight trend and your measured burn, calculated from
+                what you ate and what the scale did, ready to use as your
+                target.
+              </p>
+            </div>
+          </div>
+
+          <div class="feature-row">
+            <div>
+              <h3>Your library first, then 13,331 more foods.</h3>
+              <p>
+                Search shows what you have eaten before, then the food database
+                under it. Pick a USDA portion, see calories and macros change as
+                you go, log.
+              </p>
+              <ul>
+                <li>
+                  Plain foods first: "egg" finds whole raw egg before an egg
+                  burrito
+                </li>
+                <li>
+                  Typos and synonyms: "chiken brest", "coke", "prawns",
+                  "aubergine"
+                </li>
+                <li>
+                  Browse 17 groups, from dishes and fast food to drinks and baby
+                  food
+                </li>
+                <li>
+                  Build a meal from ingredients with "From database" in any meal
+                </li>
+              </ul>
+            </div>
+            <div class="shot">
+              <img
+                src="screens/search.jpg"
+                alt="Search results from your own foods and the food database"
+              />
+            </div>
+          </div>
+
+          <div class="feature-row flip">
+            <div>
+              <h3>Portions people actually use.</h3>
+              <p>
+                One serving, a tablespoon, a slice or a cup, as USDA measured
+                them. Half, double or exact grams. Missing values in the source
+                are shown, never guessed.
+              </p>
+            </div>
+            <div class="shot">
+              <img
+                src="screens/portion.jpg"
+                alt="Choosing a portion of hummus with live calories and macros"
+              />
+            </div>
+          </div>
+
+          <div class="feature-row">
+            <div>
+              <h3>See where it is going.</h3>
+              <p>
+                Weekly calories against targets that follow your training days,
+                30 and 90 day trends, rule-based insights, and a weight trend
+                that ignores daily swings.
+              </p>
+            </div>
+            <div class="shot">
+              <img
+                src="screens/weight.jpg"
+                alt="Weight trend chart and measured daily burn"
+              />
+            </div>
+          </div>
+
+          <div class="stats" aria-label="FoodLog in numbers">
+            <div class="stat">
+              <b>13,331</b><span>foods and dishes built in</span>
+            </div>
+            <div class="stat"><b>24</b><span>nutrients per food</span></div>
+            <div class="stat"><b>17</b><span>food groups to browse</span></div>
+            <div class="stat">
+              <b>0</b><span>trackers, ads or subscriptions</span>
+            </div>
+          </div>
+
+          <p class="eyebrow" style="margin-top: 72px">And the rest of it</p>
+          <h2>Everything else it does.</h2>
+          <div class="more">
+            <div>
+              <b>Water and caffeine</b
+              ><span
+                >Quick adds, drinks inside meals and a daily target from your
+                weight.</span
+              >
+            </div>
+            <div>
+              <b>Vitamins and minerals</b
+              ><span
+                >15 micronutrients, from vitamin D to iron and caffeine, tracked
+                against your targets.</span
+              >
+            </div>
+            <div>
+              <b>Training-day targets</b
+              ><span
+                >More carbs on training days, the weekly total kept
+                steady.</span
+              >
+            </div>
+            <div>
+              <b>What should I eat?</b
+              ><span
+                >Compare options against what is left today, or ask for ideas
+                from your usual foods.</span
+              >
+            </div>
+            <div>
+              <b>Correct the AI</b
+              ><span
+                >Type what is wrong and it estimates again with your correction
+                as fact.</span
+              >
+            </div>
+            <div>
+              <b>Late nights count right</b
+              ><span
+                >A meal at 1 am belongs to the day you are still awake in. You
+                choose when a day starts.</span
+              >
+            </div>
+            <div>
+              <b>Drafts that wait</b
+              ><span
+                >Snap now, log later. Drafts made offline upload when you are
+                back online.</span
+              >
+            </div>
+            <div>
+              <b>Bring your history</b
+              ><span
+                >Import from Cronometer, MyFitnessPal, a FoodLog backup or any
+                weight CSV.</span
+              >
+            </div>
+            <div>
+              <b>Yours to keep</b
+              ><span
+                >CSV and JSON export, any time. Leaving is one download
+                away.</span
+              >
+            </div>
+            <div>
+              <b>For your household</b
+              ><span
+                >On your own server, invite people, approve access requests and
+                give each person an AI budget.</span
+              >
+            </div>
+            <div>
+              <b>Installable</b
+              ><span
+                >A home-screen app on Android and iPhone, dark or light.</span
+              >
+            </div>
+            <div>
+              <b>No AI? No problem</b
+              ><span
+                >Without a key the app hides AI and leads with search, the
+                database and barcodes.</span
+              >
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="screens">
+        <div class="wrap">
+          <p class="eyebrow">Screens</p>
+          <h2>Five screens, and that is most of it.</h2>
+          <div class="gallery">
+            <figure>
+              <img src="screens/today.jpg" alt="Today" />
+              <figcaption>Today</figcaption>
+            </figure>
+            <figure>
+              <img src="screens/search.jpg" alt="Log search" />
+              <figcaption>Log</figcaption>
+            </figure>
+            <figure>
+              <img src="screens/portion.jpg" alt="Portion picker" />
+              <figcaption>Portions</figcaption>
+            </figure>
+            <figure>
+              <img src="screens/database.jpg" alt="Food database" />
+              <figcaption>Food database</figcaption>
+            </figure>
+            <figure>
+              <img src="screens/weight.jpg" alt="Weight and burn" />
+              <figcaption>Stats</figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <section id="demo" data-needs="demo">
+        <div class="wrap">
+          <p class="eyebrow">Live demo</p>
+          <h2>Try it before you install anything.</h2>
+          <p class="section-lead">
+            The demo gives you a private sandbox with two months of example
+            meals, weigh-ins and water. Change anything you like. It is deleted
+            after a day, and AI estimates are simulated so nothing is sent
+            anywhere.
+          </p>
+          <p style="margin-top: 24px">
+            <a class="btn btn-primary" data-link="demo" href="#"
+              >Open the demo</a
+            >
+          </p>
+        </div>
+      </section>
+
+      <section id="get">
+        <div class="wrap">
+          <p class="eyebrow">Get FoodLog</p>
+          <h2>One server, everyone you cook for.</h2>
+          <p class="section-lead">
+            FoodLog runs as one Docker service with PostgreSQL. Your meals,
+            photos and weights stay on it; the only things that ever leave are
+            the requests you choose to send to an AI provider and barcode
+            lookups to Open Food Facts.
+          </p>
+          <p class="section-lead">
+            Every copy is independent. You create the first account with the
+            setup code from your server's log and you are its admin: no sign-up
+            with us, nobody to approve you.
+          </p>
+          <div class="choices">
+            <div class="card">
+              <h3>Docker Compose</h3>
+              <ul>
+                <li>Runs on a home server, a VPS or a Raspberry Pi</li>
+                <li>Prebuilt images for amd64 and arm64</li>
+                <li>Backups with one pg_dump</li>
+              </ul>
+              <pre><code>git clone <span data-text="repo">https://github.com/Chrishalaby/foodlog</span>
+cd foodlog &amp;&amp; cp .env.example .env
+docker compose up -d --build</code></pre>
+              <a
+                class="btn btn-ghost"
+                data-link="repo"
+                data-path="#self-host-quick-start"
+                href="#open-source"
+                >Self-hosting guide</a
+              >
+            </div>
+            <div class="card">
+              <h3>Your AI, or none</h3>
+              <ul>
+                <li>
+                  No key: search, food database, barcodes and manual entry
+                </li>
+                <li>OpenAI key: photo, label, voice and day estimates</li>
+                <li>Or Ollama, LM Studio, OpenRouter, Gemini via one URL</li>
+              </ul>
+              <a
+                class="btn btn-ghost"
+                data-link="repo"
+                data-path="#other-ai-providers"
+                href="#open-source"
+                >AI provider settings</a
+              >
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="open-source">
+        <div class="wrap">
+          <p class="eyebrow">Open source</p>
+          <h2>AGPL-licensed, and staying that way.</h2>
+          <p class="section-lead">
+            The code is public and every fork or hosted copy has to stay open.
+            There is no closed edition, no telemetry and no account with anyone
+            but your own server.
+          </p>
+          <p
+            style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px"
+          >
+            <a class="btn btn-primary" data-link="repo" href="#"
+              >View on GitHub</a
+            >
+            <a
+              class="btn btn-ghost"
+              data-link="repo"
+              data-path="/blob/main/CONTRIBUTING.md"
+              href="#"
+              >Contributing</a
+            >
+            <a
+              class="btn btn-ghost"
+              data-link="repo"
+              data-path="/blob/main/docs/FOOD_DATABASE.md"
+              href="#"
+              >About the food data</a
+            >
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <p style="margin: 0">
+          Food data: U.S. Department of Agriculture, Agricultural Research
+          Service. FoodData Central. fdc.nal.usda.gov (public domain, CC0 1.0).
+        </p>
+        <p style="margin: 0">
+          FoodLog is free software under the GNU Affero General Public License
+          v3.0 or later. Nutrition values are estimates, not medical advice.
+        </p>
+      </div>
+    </footer>
+
+    <script>
+      (function () {
+        var repo = document.body.getAttribute("data-repo") || "";
+        var demo = document.body.getAttribute("data-demo") || "";
+        document
+          .querySelectorAll('[data-needs="demo"]')
+          .forEach(function (node) {
+            node.hidden = !demo;
+          });
+        document.querySelectorAll("[data-link]").forEach(function (node) {
+          var target = node.getAttribute("data-link") === "demo" ? demo : repo;
+          if (target) {
+            node.setAttribute(
+              "href",
+              target + (node.getAttribute("data-path") || ""),
+            );
+            node.setAttribute("rel", "noopener");
+          }
+        });
+        if (repo) {
+          document
+            .querySelectorAll('[data-text="repo"]')
+            .forEach(function (node) {
+              node.textContent = repo;
+            });
+        }
+      })();
+    </script>
+  </body>
+</html>

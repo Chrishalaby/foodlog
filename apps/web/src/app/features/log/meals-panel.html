@@ -1,0 +1,136 @@
+<header
+  class="sticky top-safe z-20 flex min-h-14 items-center gap-2 bg-bg/85 px-4 pt-3 pb-2 backdrop-blur-xl"
+>
+  <button
+    type="button"
+    class="btn btn-ghost btn-icon -ml-2"
+    aria-label="Discard meals"
+    [disabled]="busy()"
+    (click)="discard.emit()"
+  >
+    <app-icon name="close" [size]="24" />
+  </button>
+  <div class="min-w-0 flex-1">
+    <h1
+      class="truncate text-[22px] leading-7 font-bold tracking-tight text-fg outline-none"
+      tabindex="-1"
+      data-autofocus
+    >
+      {{ title() }}
+    </h1>
+    <p class="truncate text-sm text-muted">Split from your description</p>
+  </div>
+</header>
+
+<div class="flex flex-col gap-4 px-4 pt-2 pb-36" [attr.inert]="busy() ? '' : null">
+  <p class="text-sm leading-snug text-muted">
+    Each meal is saved on its own. Tap one to check the items, or fix its time right here.
+  </p>
+
+  <label
+    class="flex min-h-12 items-center gap-2.5 rounded-2xl border border-line/70 bg-surface px-3.5 text-sm"
+  >
+    <app-icon class="shrink-0 text-muted" name="clock" [size]="18" />
+    <span class="min-w-0 flex-1 truncate text-fg">{{ dayText() }}</span>
+    <input
+      type="date"
+      class="min-h-11 min-w-0 bg-transparent text-right font-semibold text-fg tabular-nums outline-none [&::-webkit-date-and-time-value]:text-right"
+      aria-label="Day these meals were eaten"
+      [max]="today"
+      [value]="day()"
+      (change)="onDay($event)"
+    />
+  </label>
+
+  <ul class="flex flex-col gap-2.5" aria-label="Meals">
+    @for (row of rows(); track row.meal.id) {
+      <li
+        class="card overflow-hidden"
+        [class]="row.problem ? 'border-warn/50' : ''"
+        data-testid="meal-row"
+      >
+        <div class="flex items-center gap-2 px-3.5 pt-3">
+          <span class="flex min-w-0 flex-1 items-center gap-2">
+            <app-meal-type-badge class="shrink-0" [mealType]="row.meal.mealType" />
+            @if (row.day; as day) {
+              <span class="truncate text-xs font-medium text-muted">{{ day }}</span>
+            }
+          </span>
+          <input
+            type="time"
+            class="min-h-11 shrink-0 rounded-xl bg-surface-2 px-2.5 text-sm font-semibold text-fg tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            [attr.aria-label]="'Time of ' + row.title"
+            [value]="row.time"
+            (change)="onTime(row, $event)"
+          />
+          <button
+            type="button"
+            class="btn btn-ghost btn-icon -mr-2 shrink-0 text-muted"
+            [attr.aria-label]="'Remove ' + row.title"
+            (click)="store.removeMeal(row.meal.id)"
+          >
+            <app-icon name="trash" [size]="18" />
+          </button>
+        </div>
+        <button
+          type="button"
+          class="flex w-full items-center gap-3 px-3.5 pt-1.5 pb-3 text-left transition active:bg-surface-2"
+          [attr.aria-label]="'Review ' + row.title + ', ' + row.kcal + ' kcal'"
+          (click)="store.openMeal(row.meal.id)"
+        >
+          <span class="min-w-0 flex-1">
+            <span class="line-clamp-2 text-[15px] leading-5 font-semibold break-words text-fg">
+              {{ row.title }}
+            </span>
+            @if (row.items) {
+              <span class="mt-0.5 line-clamp-2 block text-xs leading-snug text-muted">
+                {{ row.items }}
+              </span>
+            }
+            <span class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs tabular-nums">
+              <span class="font-semibold text-fg">{{ row.kcal }} kcal</span>
+              <span class="text-muted">{{ row.protein }} g protein</span>
+              @if (row.problem) {
+                <span class="chip bg-warn/15 px-2 py-0.5 text-warn">Needs a look</span>
+              } @else if (row.question) {
+                <span class="chip bg-accent/15 px-2 py-0.5 text-accent">1 question</span>
+              } @else if (row.warnings > 0) {
+                <span class="chip px-2 py-0.5">Check values</span>
+              }
+            </span>
+          </span>
+          <app-icon class="shrink-0 text-muted" name="chevron-right" [size]="18" />
+        </button>
+      </li>
+    }
+  </ul>
+</div>
+
+<app-sticky-actions>
+  @if (store.mealsError(); as message) {
+    <p
+      class="flex items-center justify-center gap-1.5 rounded-xl bg-elevated/95 px-3 py-2 text-center text-sm font-medium text-danger shadow-soft"
+      role="alert"
+    >
+      <app-icon name="alert" [size]="16" />
+      {{ message }}
+    </p>
+  }
+  <button
+    type="button"
+    class="btn btn-primary min-h-13 w-full text-base"
+    [disabled]="busy()"
+    (click)="save.emit()"
+  >
+    @if (busy()) {
+      <app-spinner [size]="18" label="Saving" />
+      Saving…
+    } @else {
+      <app-icon name="check" [strokeWidth]="2.5" />
+      {{ saveLabel() }}
+      <span class="rounded-lg bg-brand-fg/12 px-2 py-0.5 text-sm tabular-nums"
+        >{{ kcal() }} kcal</span
+      >
+    }
+  </button>
+</app-sticky-actions>

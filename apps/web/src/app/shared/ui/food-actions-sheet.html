@@ -1,0 +1,173 @@
+<app-bottom-sheet
+  [(open)]="open"
+  [ariaLabel]="'Actions for ' + (result()?.name ?? 'food')"
+  [canClose]="canClose"
+>
+  @if (result(); as current) {
+    @if (view() === 'actions') {
+      <div class="flex flex-col gap-3" (pointerdown)="arm()">
+        <header class="flex items-center gap-3">
+          <app-food-thumb [result]="current" />
+          <div class="min-w-0 flex-1">
+            <h2 class="line-clamp-2 text-lg leading-6 font-semibold tracking-tight break-words">
+              {{ current.name }}
+            </h2>
+            <p class="truncate text-xs text-muted tabular-nums">{{ summary() }}</p>
+          </div>
+          <button
+            type="button"
+            class="btn btn-ghost btn-icon -mr-2 text-muted"
+            aria-label="Close"
+            (click)="close()"
+          >
+            <app-icon name="close" [size]="22" />
+          </button>
+        </header>
+
+        <div
+          class="-mx-2 flex flex-col"
+          role="group"
+          [attr.aria-label]="'Actions for ' + current.name"
+        >
+          <button
+            type="button"
+            class="flex min-h-14 w-full items-center gap-3.5 rounded-2xl px-3 py-2 text-left transition hover:bg-surface-2 active:bg-surface-2 disabled:opacity-60"
+            [disabled]="busy()"
+            (click)="adjustAmount($event)"
+          >
+            <span
+              class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent"
+            >
+              <app-icon name="scale" [size]="18" />
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block text-[15px] leading-5 font-semibold text-fg"
+                >Adjust amount &amp; log</span
+              >
+              <span class="block text-xs text-muted"
+                >Change the amount, meal or time, then log</span
+              >
+            </span>
+          </button>
+          @if (canRename()) {
+            <button
+              type="button"
+              class="flex min-h-14 w-full items-center gap-3.5 rounded-2xl px-3 py-2 text-left transition hover:bg-surface-2 active:bg-surface-2"
+              (click)="startRename($event)"
+            >
+              <span
+                class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand/12 text-brand"
+              >
+                <app-icon name="edit" [size]="18" />
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="block text-[15px] leading-5 font-semibold text-fg">Rename…</span>
+                <span class="block text-xs text-muted">Fix the name on every entry of it</span>
+              </span>
+            </button>
+          }
+          @if (product()) {
+            <button
+              type="button"
+              class="flex min-h-14 w-full items-center gap-3.5 rounded-2xl px-3 py-2 text-left transition hover:bg-surface-2 active:bg-surface-2 disabled:opacity-60"
+              [disabled]="busy()"
+              (click)="startProductEdit($event)"
+            >
+              <span
+                class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand/12 text-brand"
+              >
+                <app-icon name="edit" [size]="18" />
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="block text-[15px] leading-5 font-semibold text-fg">Edit product…</span>
+                <span class="block text-xs text-muted"
+                  >Fix its name, brand or nutrition values</span
+                >
+              </span>
+            </button>
+          }
+          <button
+            type="button"
+            class="flex min-h-14 w-full items-center gap-3.5 rounded-2xl px-3 py-2 text-left transition hover:bg-surface-2 active:bg-surface-2 disabled:opacity-60"
+            [disabled]="busy()"
+            (click)="remove($event)"
+          >
+            @if (product()) {
+              <span
+                class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-danger/12 text-danger"
+              >
+                <app-icon name="trash" [size]="18" />
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="block text-[15px] leading-5 font-semibold text-fg"
+                  >Delete product</span
+                >
+                <span class="block text-xs text-muted"
+                  >It leaves your suggestions. Your logs are kept.</span
+                >
+              </span>
+            } @else {
+              <span
+                class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-warn/15 text-warn"
+              >
+                <app-icon name="eye-off" [size]="18" />
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="block text-[15px] leading-5 font-semibold text-fg"
+                  >Remove from suggestions</span
+                >
+                <span class="block text-xs text-muted"
+                  >Your logs are kept. Bring it back from Settings.</span
+                >
+              </span>
+            }
+          </button>
+        </div>
+      </div>
+    } @else {
+      <form class="flex flex-col gap-4" novalidate (submit)="saveName($event)">
+        <header class="flex items-center gap-1">
+          <button
+            type="button"
+            class="btn btn-ghost btn-icon -ml-2 text-muted"
+            aria-label="Back to actions"
+            [disabled]="saving()"
+            (click)="backToActions()"
+          >
+            <app-icon name="chevron-left" [size]="22" />
+          </button>
+          <h2 class="min-w-0 flex-1 truncate text-lg font-semibold tracking-tight">Rename</h2>
+        </header>
+        <div>
+          <label class="label" [for]="nameId">New name</label>
+          <input
+            #nameInput
+            type="text"
+            class="input text-[17px] font-semibold"
+            autocomplete="off"
+            autocapitalize="sentences"
+            enterkeyhint="done"
+            [id]="nameId"
+            [attr.maxlength]="nameMax"
+            [attr.aria-describedby]="nameId + '-scope'"
+            [value]="draft()"
+            [readOnly]="saving()"
+            (input)="onName($event)"
+          />
+          <p class="mt-1.5 text-xs leading-snug text-muted" [id]="nameId + '-scope'">
+            {{ scope() }} Use a name you already log to merge the two.
+          </p>
+        </div>
+        <button type="submit" class="btn btn-primary min-h-12 w-full" [disabled]="!canSaveName()">
+          @if (saving()) {
+            <app-spinner [size]="18" label="Renaming" />
+            Renaming…
+          } @else {
+            <app-icon name="check" [size]="18" [strokeWidth]="2.5" />
+            Save name
+          }
+        </button>
+      </form>
+    }
+  }
+</app-bottom-sheet>

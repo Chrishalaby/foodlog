@@ -1,0 +1,410 @@
+<ng-template #skeletonRows>
+  <div class="card flex flex-col divide-y divide-line/60 overflow-hidden" aria-hidden="true">
+    @for (i of skeletons; track i) {
+      <div class="flex items-center gap-3 px-3.5 py-3">
+        <app-skeleton class="size-11 shrink-0" />
+        <div class="flex flex-1 flex-col gap-2">
+          <app-skeleton class="w-2/3" shape="text" />
+          <app-skeleton class="w-1/3" shape="text" />
+        </div>
+        <app-skeleton class="size-11 shrink-0" shape="circle" />
+      </div>
+    }
+  </div>
+</ng-template>
+
+<ng-template #loadError>
+  <div class="card flex items-center gap-3 p-3.5 text-sm" role="alert">
+    <app-icon class="text-warn" name="alert" />
+    <span class="flex-1 text-muted">{{ search.error() }}</span>
+    <button type="button" class="btn btn-ghost px-3 text-brand" (click)="search.refresh()">
+      Retry
+    </button>
+  </div>
+</ng-template>
+
+<ng-template #resultRows let-results>
+  <div
+    class="card divide-y divide-line/60 overflow-hidden transition-opacity duration-150"
+    role="list"
+    [class.opacity-60]="!search.settled()"
+  >
+    @for (result of results; track result.key) {
+      <app-food-result-row
+        [result]="result"
+        [query]="highlightQuery()"
+        [now]="now()"
+        [busy]="actions.busyKey() === result.key"
+        [disabled]="actions.busyKey() !== null"
+        [logged]="isLogged(result)"
+        [menu]="hasMenu(result)"
+        (opened)="openResult($event)"
+        (quickLog)="quickLog($event)"
+        (menuRequested)="openMenu($event)"
+      />
+    }
+  </div>
+</ng-template>
+
+<header class="px-4 pt-3">
+  <h1
+    class="text-[22px] leading-7 font-bold tracking-tight text-fg outline-none"
+    tabindex="-1"
+    data-autofocus
+  >
+    Log food
+  </h1>
+</header>
+
+<div class="sticky top-safe z-20 bg-bg/85 px-4 pt-2 pb-3 backdrop-blur-xl">
+  <form class="relative" role="search" (submit)="submit($event)">
+    <label for="food-search" class="sr-only">Search foods you've eaten</label>
+    <span
+      class="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-muted"
+      aria-hidden="true"
+    >
+      @if (search.busy() && search.text()) {
+        <app-spinner [size]="20" label="Searching" />
+      } @else {
+        <app-icon name="search" [size]="20" />
+      }
+    </span>
+    <input
+      #searchInput
+      id="food-search"
+      type="search"
+      class="input h-12 rounded-2xl pr-12 pl-11 [&::-webkit-search-cancel-button]:appearance-none"
+      placeholder="Search foods you've eaten…"
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="none"
+      spellcheck="false"
+      enterkeyhint="search"
+      aria-controls="food-results"
+      [attr.maxlength]="queryMax"
+      [attr.aria-busy]="search.busy()"
+      [value]="search.text()"
+      (input)="onInput($event)"
+      (keydown)="onKeydown($event)"
+    />
+    @if (search.text()) {
+      <button
+        type="button"
+        class="btn btn-ghost btn-icon absolute top-0.5 right-0.5 text-muted"
+        aria-label="Clear search"
+        (click)="clear()"
+      >
+        <app-icon name="close" [size]="18" />
+      </button>
+    }
+  </form>
+</div>
+<p class="sr-only" role="status" aria-live="polite">{{ status() }}</p>
+
+<div
+  id="food-results"
+  class="flex flex-col gap-6 px-4 pt-1"
+  [class]="actions.logged().length > 0 ? 'pb-32' : 'pb-8'"
+>
+  @if (browsing()) {
+    <section class="flex flex-col gap-2" aria-label="Other ways to log">
+      <div class="grid grid-cols-2 gap-2">
+        @if (ai.enabled()) {
+          <button
+            type="button"
+            class="flex min-h-16 items-center justify-center gap-2.5 rounded-2xl bg-brand px-3 text-brand-fg shadow-lifted transition duration-150 hover:bg-brand-strong active:scale-[0.97]"
+            (click)="takePhoto()"
+          >
+            <app-icon name="camera" [size]="24" [strokeWidth]="2.1" />
+            <span class="text-[15px] leading-5 font-bold">Take photo</span>
+          </button>
+        } @else {
+          <a
+            class="flex min-h-16 items-center justify-center gap-2.5 rounded-2xl bg-brand px-3 text-brand-fg shadow-lifted transition duration-150 hover:bg-brand-strong active:scale-[0.97]"
+            routerLink="/foods"
+          >
+            <app-icon name="book" [size]="24" [strokeWidth]="2.1" />
+            <span class="text-[15px] leading-5 font-bold">Food database</span>
+          </a>
+        }
+        <button
+          type="button"
+          class="flex min-h-16 items-center justify-center gap-2.5 rounded-2xl border border-brand/35 bg-brand/12 px-3 text-brand shadow-soft transition duration-150 hover:bg-brand/18 active:scale-[0.97]"
+          (click)="scanBarcode()"
+        >
+          <app-icon name="barcode" [size]="24" [strokeWidth]="2.1" />
+          <span class="text-[15px] leading-5 font-bold">Scan barcode</span>
+        </button>
+      </div>
+      <div class="grid gap-2" [class]="tileColumns()">
+        @if (ai.enabled()) {
+          <button type="button" class="capture-tile" (click)="scanLabel()">
+            <app-icon class="text-carbs" name="label" [size]="18" />
+            Scan label
+          </button>
+          <button type="button" class="capture-tile" (click)="describeFood()">
+            <app-icon class="text-fat" name="text" [size]="18" />
+            Describe
+          </button>
+          @if (voiceSupported) {
+            <button type="button" class="capture-tile" (click)="speak()">
+              <app-icon class="text-accent" name="mic" [size]="18" />
+              Speak
+            </button>
+          }
+        }
+        <button
+          type="button"
+          class="capture-tile"
+          aria-label="Add manually"
+          (click)="manual.emit()"
+        >
+          <app-icon class="text-muted" name="edit" [size]="18" />
+          Manual
+        </button>
+      </div>
+      @if (ai.enabled()) {
+        <a class="card new-tile" routerLink="/foods" data-testid="food-database-link">
+          <span class="capture-tile-icon bg-accent/15 text-accent"><app-icon name="book" /></span>
+          <span class="min-w-0 flex-1">
+            <span class="block text-sm leading-5 font-semibold text-fg">Food database</span>
+            <span class="block text-xs leading-4 text-muted"
+              >Thousands of foods and dishes with full nutrition, no AI needed</span
+            >
+          </span>
+          <app-icon class="text-muted" name="chevron-right" [size]="18" />
+        </a>
+      } @else {
+        <p class="flex items-start gap-1.5 px-1 text-xs leading-snug text-muted" data-ai-off-note>
+          <app-icon class="mt-px shrink-0" name="info" [size]="14" />
+          AI estimates are off on this server. Search, the food database, barcodes and manual entry
+          all work without them.
+        </p>
+      }
+    </section>
+
+    <app-drafts-list variant="section" [reveal]="focusDrafts()" />
+
+    @if (loadFailed()) {
+      <ng-container *ngTemplateOutlet="loadError" />
+    } @else if (initialLoading()) {
+      <ng-container *ngTemplateOutlet="skeletonRows" />
+    } @else if (libraryEmpty()) {
+      <div class="card flex flex-col items-center gap-2 px-6 py-8 text-center">
+        <span
+          class="mb-1 flex size-12 items-center justify-center rounded-2xl bg-brand/12 text-brand"
+        >
+          <app-icon name="search" [size]="24" />
+        </span>
+        <p class="text-[15px] font-semibold text-fg">Your food library builds itself</p>
+        <p class="text-sm leading-snug text-muted">
+          Everything you log shows up here. Next time, find it in a second and log it in one tap, no
+          AI needed.
+        </p>
+      </div>
+    } @else {
+      @if (search.error()) {
+        <ng-container *ngTemplateOutlet="loadError" />
+      }
+      @if (search.sections().starred; as starred) {
+        @if (starred.length > 0) {
+          <section aria-labelledby="starred-title">
+            <div class="mb-1 flex items-center justify-between">
+              <h2 id="starred-title" class="section-title">Starred</h2>
+              <a
+                class="-mr-2 inline-flex min-h-11 items-center px-2 text-xs font-semibold text-brand"
+                routerLink="/favorites"
+                >Manage</a
+              >
+            </div>
+            <ng-container *ngTemplateOutlet="resultRows; context: { $implicit: starred }" />
+          </section>
+        }
+      }
+      @if (search.sections().recent; as recent) {
+        @if (recent.length > 0) {
+          <section aria-labelledby="recent-title">
+            <h2 id="recent-title" class="section-title mb-2.5">Frequent &amp; recent</h2>
+            <ng-container *ngTemplateOutlet="resultRows; context: { $implicit: recent }" />
+          </section>
+        }
+      }
+    }
+  } @else {
+    @if (loadFailed()) {
+      <ng-container *ngTemplateOutlet="loadError" />
+    } @else if (searchResults().length > 0) {
+      <section aria-label="Matching foods" class="flex flex-col gap-2">
+        @if (search.error()) {
+          <ng-container *ngTemplateOutlet="loadError" />
+        }
+        <ng-container *ngTemplateOutlet="resultRows; context: { $implicit: searchResults() }" />
+      </section>
+    } @else if (showNoMatches()) {
+      @if (nothingFound()) {
+        <div class="animate-fade-in px-2 pt-2 text-center">
+          <p class="text-[15px] font-semibold text-fg">No matches for “{{ query() }}”</p>
+          <p class="mt-1 text-sm leading-snug text-muted">
+            It's not in your library or the food database. Log it once and it's one tap away next
+            time.
+          </p>
+        </div>
+      }
+    } @else {
+      <ng-container *ngTemplateOutlet="skeletonRows" />
+    }
+
+    @if (catalogResults().length > 0) {
+      <section class="flex flex-col gap-2" aria-labelledby="catalog-title">
+        <div class="flex items-center justify-between">
+          <h2 id="catalog-title" class="section-title">Food database</h2>
+          @if (catalogMore()) {
+            <a
+              class="-mr-2 inline-flex min-h-11 items-center px-2 text-xs font-semibold text-brand"
+              routerLink="/foods"
+              [queryParams]="{ q: query() }"
+              >See all {{ catalog.total() }}</a
+            >
+          }
+        </div>
+        <div class="card divide-y divide-line/60 overflow-hidden" role="list">
+          @for (food of catalogResults(); track food.id) {
+            <app-catalog-result-row
+              [food]="food"
+              [query]="query()"
+              (opened)="openCatalog($event)"
+            />
+          }
+        </div>
+      </section>
+    }
+
+    <section class="flex flex-col gap-2" aria-labelledby="log-new-title">
+      <h2 id="log-new-title" class="section-title">
+        {{ nothingFound() ? 'Log it now' : 'Not what you had?' }}
+      </h2>
+      @if (!ai.enabled()) {
+        <button
+          type="button"
+          class="flex min-h-16 items-center gap-3 rounded-card border border-line/70 bg-surface p-3.5 text-left shadow-soft transition hover:bg-surface-2 active:scale-[0.99]"
+          (click)="addManually()"
+        >
+          <span
+            class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-muted"
+          >
+            <app-icon name="edit" />
+          </span>
+          <span class="min-w-0 flex-1">
+            <span class="block text-[15px] leading-5 font-semibold break-words text-fg"
+              >Add “{{ query() }}” manually</span
+            >
+            <span class="mt-0.5 block text-xs text-muted"
+              >Type the values from a label or recipe</span
+            >
+          </span>
+          <app-icon class="text-muted" name="chevron-right" [size]="18" />
+        </button>
+      } @else {
+        <button
+          type="button"
+          class="flex min-h-16 items-center gap-3 rounded-card border p-3.5 text-left shadow-soft transition active:scale-[0.99]"
+          [class]="
+            strongAskAi()
+              ? 'border-accent/40 bg-accent/10 hover:bg-accent/15'
+              : 'border-line/70 bg-surface hover:bg-surface-2'
+          "
+          (click)="askAi()"
+        >
+          <span
+            class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent"
+          >
+            <app-icon name="sparkles" />
+          </span>
+          <span class="min-w-0 flex-1">
+            <span class="block text-[15px] leading-5 font-semibold break-words text-fg"
+              >Ask AI about “{{ query() }}”</span
+            >
+            <span class="mt-0.5 block text-xs text-muted"
+              >Tip: add the amount, e.g. 1 cup / 150 g</span
+            >
+          </span>
+          <app-icon class="text-muted" name="chevron-right" [size]="18" />
+        </button>
+      }
+      <div class="grid grid-cols-2 gap-2">
+        <button type="button" class="card new-tile col-span-2" (click)="scanBarcode()">
+          <span class="capture-tile-icon bg-accent/15 text-accent"
+            ><app-icon name="barcode"
+          /></span>
+          <span class="min-w-0 flex-1">
+            <span class="block text-sm leading-5 font-semibold text-fg">Scan the barcode</span>
+            <span class="block text-xs leading-4 text-muted">Instant for packaged food</span>
+          </span>
+          <app-icon class="text-muted" name="chevron-right" [size]="18" />
+        </button>
+        @if (ai.enabled()) {
+          <button type="button" class="card new-tile" (click)="scanLabel()">
+            <span class="capture-tile-icon bg-carbs/15 text-carbs"><app-icon name="label" /></span>
+            <span class="min-w-0">
+              <span class="block text-sm leading-5 font-semibold text-fg">Scan the label</span>
+              <span class="block text-xs leading-4 text-muted">Best for packaged foods</span>
+            </span>
+          </button>
+          <button type="button" class="card new-tile" (click)="takePhoto()">
+            <span class="capture-tile-icon bg-brand/12 text-brand"><app-icon name="camera" /></span>
+            <span class="min-w-0">
+              <span class="block text-sm leading-5 font-semibold text-fg">Take a photo</span>
+              <span class="block text-xs leading-4 text-muted">AI estimates the plate</span>
+            </span>
+          </button>
+        }
+      </div>
+    </section>
+  }
+</div>
+
+@if (actions.logged().length > 0) {
+  <app-sticky-actions>
+    <div
+      class="flex animate-pop-in items-center gap-3 rounded-2xl border border-line/70 bg-elevated/95 py-2 pr-2 pl-3 shadow-lifted backdrop-blur-xl"
+      role="status"
+    >
+      <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-ok/15 text-ok">
+        <app-icon name="check" [size]="18" [strokeWidth]="2.5" />
+      </span>
+      <span class="min-w-0 flex-1">
+        <span class="block truncate text-sm leading-5 font-semibold text-fg">{{
+          trayText().title
+        }}</span
+        ><span class="sr-only">,&ngsp;</span
+        ><span class="block text-xs text-muted tabular-nums">{{ trayText().detail }}</span>
+      </span>
+      <button type="button" class="btn btn-primary shrink-0 px-3.5" (click)="actions.viewToday()">
+        View today
+        <app-icon name="chevron-right" [size]="16" [strokeWidth]="2.5" />
+      </button>
+    </div>
+  </app-sticky-actions>
+}
+
+<app-quick-log-sheet [selection]="selection()" [(open)]="sheetOpen" (edit)="edit.emit($event)" />
+<app-catalog-food-sheet
+  [selection]="catalogSelection()"
+  [(open)]="catalogOpen"
+  (edit)="edit.emit($event)"
+/>
+<app-food-actions-sheet
+  [selection]="menuSelection()"
+  [(open)]="menuOpen"
+  [busy]="actions.busyKey() !== null"
+  [rename]="renameFood"
+  (adjust)="openResult($event)"
+  (hide)="hideFood($event)"
+  (editProduct)="editProduct($event)"
+  (deleteProduct)="deleteProduct($event)"
+/>
+<app-product-edit-sheet
+  [(open)]="productEditorOpen"
+  [food]="productTarget()"
+  (missing)="onProductMissing($event)"
+/>

@@ -1,0 +1,586 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MealType {
+  breakfast
+  lunch
+  dinner
+  snack
+}
+
+enum AnalysisMode {
+  food_photo
+  nutrition_label
+  text
+  menu
+  voice
+  ideas
+}
+
+enum EntrySource {
+  food_photo
+  nutrition_label
+  text
+  favorite
+  manual
+  copy
+  barcode
+  database
+  import
+}
+
+enum UserRole {
+  admin
+  member
+}
+
+enum UserStatus {
+  active
+  disabled
+}
+
+enum AccessRequestStatus {
+  pending
+  approved
+  rejected
+}
+
+enum AuthTokenType {
+  invite
+  reset
+}
+
+enum ProductSource {
+  label
+  openfoodfacts
+  manual
+}
+
+enum Confidence {
+  low
+  medium
+  high
+}
+
+enum FluidKind {
+  water
+  coffee
+  tea
+  other
+}
+
+enum Sex {
+  male
+  female
+}
+
+enum ActivityLevel {
+  sedentary
+  light
+  moderate
+  very
+  extra
+}
+
+enum Goal {
+  maintain
+  cut
+  bulk
+}
+
+model AppSecret {
+  key       String   @id
+  value     String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+}
+
+model User {
+  id                 String          @id @default(uuid(7)) @db.Uuid
+  email              String          @unique
+  passwordHash       String
+  name               String?
+  role               UserRole        @default(member)
+  status             UserStatus      @default(active)
+  aiMonthlyBudgetUsd Float?
+  aiBudgetUnlimited  Boolean         @default(false)
+  lastSeenAt         DateTime?       @db.Timestamptz(3)
+  demoExpiresAt      DateTime?       @db.Timestamptz(3)
+  createdAt          DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime        @updatedAt @db.Timestamptz(3)
+  drafts             Draft[]
+  notes              Note[]
+  sessions           Session[]
+  products           Product[]
+  tokens             AuthToken[]     @relation("TokenUser")
+  createdTokens      AuthToken[]     @relation("TokenCreator")
+  decidedRequests    AccessRequest[] @relation("RequestDecider")
+  profile            Profile?
+  entries            Entry[]
+  favorites          Favorite[]
+  dayMetas           DayMeta[]
+  weightLogs         WeightLog[]
+  fluidLogs          FluidLog[]
+  photos             Photo[]
+  analyses           Analysis[]
+  aiUsages           AiUsage[]
+
+  @@index([demoExpiresAt])
+}
+
+model Profile {
+  userId              String        @id @db.Uuid
+  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weightKg            Float?
+  heightCm            Float?
+  age                 Int?
+  sex                 Sex?
+  bodyFatPct          Float?
+  tdeeOverride        Int?
+  onboardedAt         DateTime?     @db.Timestamptz(3)
+  activityLevel       ActivityLevel @default(moderate)
+  goal                Goal          @default(maintain)
+  trainingDaysPerWeek Int           @default(0)
+  targetOverrides     Json          @default("{}")
+  hiddenFoods         String[]      @default([])
+  dismissedFoodMerges String[]      @default([])
+  foodMergeDecisions  Json          @default("[]")
+  dayStartHour        Int           @default(3)
+  fluidTargetMl       Int?
+  location            String?
+  aiModel             String?
+  aiDetailFood        String        @default("high")
+  aiDetailLabel       String        @default("high")
+  theme               String        @default("dark")
+  createdAt           DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime      @updatedAt @db.Timestamptz(3)
+}
+
+model DayMeta {
+  userId      String   @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date        String   @db.VarChar(10)
+  trainingDay Boolean  @default(false)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  @@id([userId, date])
+}
+
+model WeightLog {
+  userId     String   @db.Uuid
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date       String   @db.VarChar(10)
+  weightKg   Float
+  bodyFatPct Float?
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  @@id([userId, date])
+}
+
+model Session {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  userId     String    @db.Uuid
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent  String?
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+  lastSeenAt DateTime  @default(now()) @db.Timestamptz(3)
+  revokedAt  DateTime? @db.Timestamptz(3)
+
+  @@index([userId])
+}
+
+model AccessRequest {
+  id              String              @id @default(uuid(7)) @db.Uuid
+  email           String
+  name            String
+  message         String?
+  status          AccessRequestStatus @default(pending)
+  statusTokenHash String              @unique
+  createdAt       DateTime            @default(now()) @db.Timestamptz(3)
+  decidedAt       DateTime?           @db.Timestamptz(3)
+  decidedById     String?             @db.Uuid
+  decidedBy       User?               @relation("RequestDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+  acceptedAt      DateTime?           @db.Timestamptz(3)
+  tokens          AuthToken[]
+
+  @@index([status, createdAt])
+  @@index([email])
+}
+
+model AuthToken {
+  id              String         @id @default(uuid(7)) @db.Uuid
+  type            AuthTokenType
+  email           String
+  name            String?
+  role            UserRole       @default(member)
+  userId          String?        @db.Uuid
+  user            User?          @relation("TokenUser", fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash       String         @unique
+  createdById     String?        @db.Uuid
+  createdBy       User?          @relation("TokenCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  accessRequestId String?        @db.Uuid
+  accessRequest   AccessRequest? @relation(fields: [accessRequestId], references: [id], onDelete: SetNull)
+  createdAt       DateTime       @default(now()) @db.Timestamptz(3)
+  expiresAt       DateTime       @db.Timestamptz(3)
+  usedAt          DateTime?      @db.Timestamptz(3)
+  revokedAt       DateTime?      @db.Timestamptz(3)
+
+  @@index([email])
+  @@index([type, createdAt])
+}
+
+model Product {
+  id               String        @id @default(uuid(7)) @db.Uuid
+  userId           String        @db.Uuid
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  barcode          String?       @db.VarChar(32)
+  name             String
+  brand            String?
+  aliases          String[]      @default([])
+  unitName         String?
+  unitGrams        Float?
+  microsPer100     Json?
+  basisUnit        String        @default("g")
+  calories         Float         @default(0)
+  protein          Float         @default(0)
+  carbs            Float         @default(0)
+  fat              Float         @default(0)
+  satFat           Float         @default(0)
+  fiber            Float         @default(0)
+  sugar            Float         @default(0)
+  sodium           Float         @default(0)
+  alcohol          Float         @default(0)
+  servingSizeG     Float?
+  packSizeG        Float?
+  source           ProductSource
+  missingNutrients String[]      @default([])
+  imageUrl         String?
+  useCount         Int           @default(0)
+  lastUsedAt       DateTime?     @db.Timestamptz(3)
+  entries          Entry[]
+  items            EntryItem[]
+  createdAt        DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime      @updatedAt @db.Timestamptz(3)
+
+  @@unique([userId, barcode])
+  @@index([userId, useCount])
+}
+
+model Photo {
+  id             String          @id @default(uuid(7)) @db.Uuid
+  userId         String          @db.Uuid
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storageKey     String
+  thumbKey       String
+  width          Int
+  height         Int
+  bytes          Int
+  createdAt      DateTime        @default(now()) @db.Timestamptz(3)
+  entries        Entry[]
+  favorites      Favorite[]
+  entryPhotos    EntryPhoto[]
+  draftPhotos    DraftPhoto[]
+  notePhotos     NotePhoto[]
+  analysisPhotos AnalysisPhoto[]
+  analyses       Analysis[]
+
+  @@index([userId, createdAt])
+}
+
+model Draft {
+  id                String       @id @default(uuid(7)) @db.Uuid
+  userId            String       @db.Uuid
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mode              AnalysisMode
+  name              String?
+  description       String?
+  mealType          MealType?
+  timestamp         DateTime     @db.Timestamptz(3)
+  localDate         String       @db.VarChar(10)
+  portionCount      Float?
+  portionUnit       String?
+  portionUnitPlural String?
+  items             Json?
+  analysisId        String?      @db.Uuid
+  analysis          Analysis?    @relation(fields: [analysisId], references: [id], onDelete: SetNull)
+  photos            DraftPhoto[]
+  createdAt         DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime     @updatedAt @db.Timestamptz(3)
+
+  @@index([userId, updatedAt])
+  @@index([analysisId])
+}
+
+model EntryPhoto {
+  entryId  String @db.Uuid
+  entry    Entry  @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  photoId  String @db.Uuid
+  photo    Photo  @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  role     String @default("food")
+  position Int    @default(0)
+
+  @@id([entryId, photoId])
+  @@index([photoId])
+}
+
+model DraftPhoto {
+  draftId  String @db.Uuid
+  draft    Draft  @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  photoId  String @db.Uuid
+  photo    Photo  @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  role     String @default("food")
+  position Int    @default(0)
+
+  @@id([draftId, photoId])
+  @@index([photoId])
+}
+
+model Note {
+  id        String      @id @default(uuid(7)) @db.Uuid
+  userId    String      @db.Uuid
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  text      String      @default("")
+  done      Boolean     @default(false)
+  doneAt    DateTime?   @db.Timestamptz(3)
+  photos    NotePhoto[]
+  createdAt DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime    @updatedAt @db.Timestamptz(3)
+
+  @@index([userId, createdAt])
+}
+
+model NotePhoto {
+  noteId   String @db.Uuid
+  note     Note   @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  photoId  String @db.Uuid
+  photo    Photo  @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  position Int
+
+  @@id([noteId, photoId])
+  @@unique([noteId, position])
+  @@index([photoId])
+}
+
+model AnalysisPhoto {
+  analysisId String   @db.Uuid
+  analysis   Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  photoId    String   @db.Uuid
+  photo      Photo    @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  role       String   @default("food")
+  position   Int      @default(0)
+
+  @@id([analysisId, photoId])
+  @@index([photoId])
+}
+
+model Analysis {
+  id                 String          @id @default(uuid(7)) @db.Uuid
+  userId             String          @db.Uuid
+  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mode               AnalysisMode
+  description        String?
+  photoId            String?         @db.Uuid
+  photo              Photo?          @relation(fields: [photoId], references: [id], onDelete: SetNull)
+  previousAnalysisId String?         @db.Uuid
+  followUpAnswer     String?
+  model              String
+  detail             String?
+  precise            Boolean         @default(false)
+  rawResponse        Json?
+  result             Json
+  createdAt          DateTime        @default(now()) @db.Timestamptz(3)
+  drafts             Draft[]
+  photos             AnalysisPhoto[]
+  usages             AiUsage[]
+  entries            Entry[]
+
+  @@index([userId, createdAt])
+  @@index([photoId])
+}
+
+model AiUsage {
+  id                String       @id @default(uuid(7)) @db.Uuid
+  userId            String       @db.Uuid
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analysisId        String?      @db.Uuid
+  analysis          Analysis?    @relation(fields: [analysisId], references: [id], onDelete: SetNull)
+  model             String
+  mode              AnalysisMode
+  detail            String?
+  attempt           Int          @default(1)
+  inputTokens       Int          @default(0)
+  cachedInputTokens Int          @default(0)
+  cacheWriteTokens  Int          @default(0)
+  outputTokens      Int          @default(0)
+  reasoningTokens   Int          @default(0)
+  costUsd           Float        @default(0)
+  durationMs        Int          @default(0)
+  success           Boolean
+  errorKind         String?
+  errorMessage      String?
+  requestId         String?
+  createdAt         DateTime     @default(now()) @db.Timestamptz(3)
+
+  @@index([userId, createdAt])
+  @@index([analysisId])
+}
+
+model Entry {
+  id                String       @id @default(uuid(7)) @db.Uuid
+  userId            String       @db.Uuid
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name              String
+  description       String?
+  mealType          MealType
+  source            EntrySource
+  timestamp         DateTime     @db.Timestamptz(3)
+  localDate         String       @db.VarChar(10)
+  photoId           String?      @db.Uuid
+  photo             Photo?       @relation(fields: [photoId], references: [id], onDelete: SetNull)
+  analysisId        String?      @db.Uuid
+  analysis          Analysis?    @relation(fields: [analysisId], references: [id], onDelete: SetNull)
+  favoriteId        String?      @db.Uuid
+  favorite          Favorite?    @relation(fields: [favoriteId], references: [id], onDelete: SetNull)
+  productId         String?      @db.Uuid
+  product           Product?     @relation(fields: [productId], references: [id], onDelete: SetNull)
+  portionCount      Float?
+  portionUnit       String?
+  portionUnitPlural String?
+  rawAiJson         Json?
+  calories          Float        @default(0)
+  protein           Float        @default(0)
+  carbs             Float        @default(0)
+  fat               Float        @default(0)
+  satFat            Float        @default(0)
+  fiber             Float        @default(0)
+  sugar             Float        @default(0)
+  sodium            Float        @default(0)
+  alcohol           Float        @default(0)
+  photos            EntryPhoto[]
+  items             EntryItem[]
+  createdAt         DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime     @updatedAt @db.Timestamptz(3)
+
+  @@index([userId, localDate])
+  @@index([userId, timestamp])
+  @@index([photoId])
+  @@index([analysisId])
+  @@index([favoriteId])
+  @@index([productId])
+}
+
+model EntryItem {
+  id         String      @id @default(uuid(7)) @db.Uuid
+  entryId    String      @db.Uuid
+  entry      Entry       @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  position   Int
+  name       String
+  grams      Float
+  count      Float?
+  unit       String?
+  unitPlural String?
+  micros     Json?
+  fluidMl    Float?
+  productId  String?     @db.Uuid
+  product    Product?    @relation(fields: [productId], references: [id], onDelete: SetNull)
+  confidence Confidence?
+  calories   Float       @default(0)
+  protein    Float       @default(0)
+  carbs      Float       @default(0)
+  fat        Float       @default(0)
+  satFat     Float       @default(0)
+  fiber      Float       @default(0)
+  sugar      Float       @default(0)
+  sodium     Float       @default(0)
+  alcohol    Float       @default(0)
+
+  @@index([entryId])
+  @@index([productId])
+}
+
+model Favorite {
+  id                String    @id @default(uuid(7)) @db.Uuid
+  userId            String    @db.Uuid
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name              String
+  mealType          MealType?
+  items             Json
+  photoId           String?   @db.Uuid
+  photo             Photo?    @relation(fields: [photoId], references: [id], onDelete: SetNull)
+  calories          Float     @default(0)
+  protein           Float     @default(0)
+  carbs             Float     @default(0)
+  fat               Float     @default(0)
+  satFat            Float     @default(0)
+  fiber             Float     @default(0)
+  sugar             Float     @default(0)
+  sodium            Float     @default(0)
+  alcohol           Float     @default(0)
+  portionCount      Float?
+  portionUnit       String?
+  portionUnitPlural String?
+  useCount          Int       @default(0)
+  lastUsedAt        DateTime? @db.Timestamptz(3)
+  entries           Entry[]
+  createdAt         DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@index([userId, useCount])
+  @@index([photoId])
+}
+
+model FluidLog {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  userId    String    @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  localDate String    @db.VarChar(10)
+  timestamp DateTime  @db.Timestamptz(3)
+  ml        Float
+  kind      FluidKind @default(water)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([userId, localDate])
+}
+
+enum CatalogSource {
+  foundation
+  sr_legacy
+  survey
+}
+
+model CatalogFood {
+  id           Int           @id
+  source       CatalogSource
+  name         String
+  searchName   String
+  category     String
+  group        String
+  calories     Float
+  protein      Float
+  carbs        Float
+  fat          Float
+  satFat       Float
+  fiber        Float
+  sugar        Float
+  sodium       Float
+  alcohol      Float
+  missing      String[]      @default([])
+  microsPer100 Json?
+  portions     Json          @default("[]")
+
+  @@index([group])
+  @@index([searchName(ops: raw("gin_trgm_ops"))], type: Gin)
+}
+
+model CatalogDataset {
+  id        String   @id
+  version   String
+  foodCount Int
+  loadedAt  DateTime @default(now()) @db.Timestamptz(3)
+}

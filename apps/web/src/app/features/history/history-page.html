@@ -1,0 +1,171 @@
+<app-page-header title="History">
+  <button
+    type="button"
+    class="btn btn-ghost btn-icon text-muted hover:text-fg"
+    aria-label="Refresh history"
+    [disabled]="busy()"
+    (click)="refresh()"
+  >
+    <app-icon name="refresh" [size]="22" [class.animate-spin]="busy()" />
+  </button>
+</app-page-header>
+
+<form class="px-4 pb-2" role="search" (submit)="submitSearch($event)">
+  <label class="sr-only" for="history-search">Search entries</label>
+  <div class="relative">
+    <span class="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-muted">
+      @if (searching()) {
+        <app-spinner [size]="18" label="Searching" />
+      } @else {
+        <app-icon name="search" [size]="18" />
+      }
+    </span>
+    <input
+      #searchInput
+      id="history-search"
+      type="search"
+      class="input pr-12 pl-10 [&::-webkit-search-cancel-button]:appearance-none"
+      placeholder="Search meals and foods"
+      autocomplete="off"
+      enterkeyhint="search"
+      [value]="searchText()"
+      (input)="onSearchInput($event)"
+      (keydown.escape)="clearSearch()"
+    />
+    @if (searchText()) {
+      <button
+        type="button"
+        class="btn btn-ghost btn-icon absolute inset-y-0 right-0 my-auto text-muted"
+        aria-label="Clear search"
+        (click)="clearSearch()"
+      >
+        <app-icon name="close" [size]="18" />
+      </button>
+    }
+  </div>
+</form>
+
+@if (initialLoading()) {
+  <div class="px-4 pt-2" aria-busy="true" aria-label="Loading history">
+    @for (row of skeletonRows; track row) {
+      <div class="mb-5">
+        <app-skeleton shape="text" class="mb-3 w-32" />
+        <div class="flex flex-col gap-2">
+          <app-skeleton class="h-[82px]" />
+          <app-skeleton class="h-[82px]" />
+        </div>
+      </div>
+    }
+  </div>
+} @else if (!hasEntries() && store.status() === 'error') {
+  <app-empty-state icon="alert" title="History didn't load" [text]="store.error() ?? ''">
+    <button type="button" class="btn btn-primary" (click)="refresh()">
+      <app-icon name="refresh" [size]="18" />
+      Try again
+    </button>
+  </app-empty-state>
+} @else if (!hasEntries() && store.query()) {
+  <app-empty-state
+    icon="search"
+    title="No matches"
+    [text]="'Nothing in your log matches “' + store.query() + '”.'"
+  >
+    <button type="button" class="btn btn-secondary" (click)="clearSearch()">Clear search</button>
+  </app-empty-state>
+} @else if (!hasEntries()) {
+  <app-empty-state
+    icon="history"
+    title="No meals logged yet"
+    text="Everything you log shows up here, grouped by day. Snap your first meal to get started."
+  >
+    <button type="button" class="btn btn-primary" (click)="logFirstMeal()">
+      <app-icon name="camera" [size]="18" />
+      Take a photo
+    </button>
+    <button type="button" class="btn btn-secondary" (click)="describeMeal()">
+      <app-icon name="text" [size]="18" />
+      Describe it
+    </button>
+  </app-empty-state>
+} @else {
+  @if (store.status() === 'error') {
+    <div
+      class="mx-4 mb-2 flex items-center gap-3 rounded-2xl border border-danger/30 bg-danger/10 py-2 pr-2 pl-3.5 text-sm text-danger"
+      role="alert"
+    >
+      <span class="min-w-0 flex-1">{{ store.error() }}</span>
+      <button type="button" class="btn btn-ghost min-h-11 px-3 text-danger" (click)="refresh()">
+        Retry
+      </button>
+    </div>
+  }
+
+  <div [attr.aria-busy]="busy()">
+    @for (day of days(); track day.date) {
+      <section class="pb-2" [attr.aria-labelledby]="'day-' + day.date">
+        <h2 class="sticky top-safe z-10 bg-bg/90 backdrop-blur-xl">
+          <a
+            class="flex min-h-11 items-center gap-2 px-4 py-2 transition active:opacity-70"
+            [id]="'day-' + day.date"
+            [routerLink]="['/today']"
+            [queryParams]="{ date: day.date }"
+          >
+            <span class="min-w-0 flex-1 truncate">
+              <span class="text-[15px] font-semibold text-fg">{{ day.label }}</span>
+              @if (day.dateLabel) {
+                <span class="ml-1.5 text-xs font-medium text-muted">{{ day.dateLabel }}</span>
+              }
+            </span>
+            <span class="shrink-0 text-xs font-medium text-muted tabular-nums">
+              <span class="font-semibold text-fg"
+                >{{ day.calories }}{{ day.partial ? '+' : '' }}</span
+              >
+              kcal · {{ day.protein }}{{ day.partial ? '+' : '' }} g protein
+            </span>
+            <app-icon name="chevron-right" [size]="16" class="text-muted" />
+          </a>
+        </h2>
+        <ul class="flex flex-col gap-2 px-4 pt-1 pb-2" role="list">
+          @for (entry of day.entries; track entry.id) {
+            <li [class.history-leave]="removing().has(entry.id)">
+              <app-entry-card
+                [entry]="entry"
+                (opened)="openEntry($event)"
+                (edit)="openEntry($event)"
+                (logAgain)="logAgain($event)"
+                (favorite)="startFavorite($event)"
+                (delete)="deleteEntry($event)"
+              />
+            </li>
+          }
+        </ul>
+      </section>
+    }
+  </div>
+
+  @if (store.hasMore()) {
+    <div #sentinel class="flex min-h-16 flex-col items-center justify-center gap-2 px-4 py-3">
+      @if (store.loadingMore()) {
+        <app-spinner label="Loading more entries" />
+      } @else if (store.moreError(); as message) {
+        <p class="text-center text-sm text-danger" role="alert">{{ message }}</p>
+        <button type="button" class="btn btn-secondary" (click)="loadMore()">
+          <app-icon name="refresh" [size]="18" />
+          Try again
+        </button>
+      } @else {
+        <button type="button" class="btn btn-secondary" (click)="loadMore()">Load more</button>
+      }
+    </div>
+  } @else {
+    <p class="px-4 py-6 text-center text-xs text-muted">
+      {{ store.query() ? 'No more matches.' : "You've reached the start of your log." }}
+    </p>
+  }
+}
+
+<app-save-favorite-sheet
+  [entry]="favoriteTarget()"
+  [(open)]="favoriteSheetOpen"
+  (saved)="onFavoriteSaved($event)"
+/>

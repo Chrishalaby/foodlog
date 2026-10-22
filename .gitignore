@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.angular/
+coverage/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+!.env.dev.example
+data/
+apps/api/data/
+apps/api/public/
+apps/api/src/generated/
+.DS_Store
+npm-debug.log*
+.vscode/*
+!.vscode/extensions.json

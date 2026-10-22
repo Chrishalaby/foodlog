@@ -1,0 +1,333 @@
+<app-bottom-sheet [(open)]="open" [ariaLabel]="'Log ' + title()">
+  @if (result(); as current) {
+    <div class="flex flex-col gap-4">
+      <header class="flex items-start gap-3">
+        <app-food-thumb [result]="current" [size]="56" />
+        <div class="min-w-0 flex-1 pt-0.5">
+          <h2 class="line-clamp-2 text-lg leading-6 font-semibold tracking-tight break-words">
+            {{ current.name }}
+          </h2>
+          <p class="mt-0.5 truncate text-xs text-muted">{{ detail() }}</p>
+        </div>
+        <button
+          type="button"
+          class="btn btn-ghost btn-icon -mt-1 disabled:opacity-50"
+          [class]="current.starred ? 'text-warn' : 'text-muted'"
+          [attr.aria-pressed]="current.starred"
+          [attr.aria-label]="
+            current.starred ? 'Starred. Remove from favorites' : 'Star ' + current.name
+          "
+          [disabled]="locked()"
+          (click)="toggleStar()"
+        >
+          <app-icon [name]="current.starred ? 'star-filled' : 'star'" [size]="22" />
+        </button>
+        <button
+          type="button"
+          class="btn btn-ghost btn-icon -mt-1 -mr-2 text-muted"
+          aria-label="Close"
+          (click)="open.set(false)"
+        >
+          <app-icon name="close" [size]="22" />
+        </button>
+      </header>
+
+      @if (lead(); as last) {
+        <p class="-mt-1.5 text-sm text-muted tabular-nums" data-quick-lead>
+          <span class="font-semibold text-fg/80">{{ last.label }}:</span> {{ last.text }}
+        </p>
+      }
+
+      @if (portion(); as amount) {
+        <section aria-label="Amount">
+          @if (amount.mode === 'count') {
+            <p class="label" [id]="ids.units">{{ unitQuestion() }}</p>
+          } @else if (!lastPortion()) {
+            <p class="label" [id]="ids.units">{{ amountQuestion() }}</p>
+          } @else {
+            <div class="mb-1.5 flex items-center justify-between gap-2">
+              <label class="label mb-0" [for]="ids.grams">Grams</label>
+              <button
+                type="button"
+                class="-my-1 inline-flex min-h-10 items-center rounded-lg px-2 text-xs font-semibold text-brand"
+                (click)="useCount()"
+              >
+                Count {{ lastPortion()?.unitPlural }} instead
+              </button>
+            </div>
+          }
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              class="btn btn-secondary btn-icon size-12"
+              [attr.aria-label]="stepLabel(-1)"
+              [disabled]="!canStep(-1)"
+              (click)="stepAmount(-1)"
+            >
+              <app-icon name="minus" />
+            </button>
+            @if (amount.mode === 'grams') {
+              <div class="relative min-w-0 flex-1">
+                <app-number-input
+                  inputClass="input h-12 pr-10 text-center text-xl font-bold tabular-nums"
+                  ariaLabel="Grams"
+                  [inputId]="ids.grams"
+                  [value]="amount.grams"
+                  [decimals]="1"
+                  [max]="maxGrams"
+                  (valueChange)="setGrams($event)"
+                />
+                <span
+                  class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm font-medium text-muted"
+                  >g</span
+                >
+              </div>
+            } @else {
+              <output
+                class="flex h-12 min-w-0 flex-1 items-center justify-center rounded-xl border border-line bg-surface-2 px-2 text-center tabular-nums"
+                aria-live="polite"
+              >
+                <span class="truncate text-lg leading-6 font-bold text-fg">{{ amountText() }}</span>
+              </output>
+            }
+            <button
+              type="button"
+              class="btn btn-secondary btn-icon size-12"
+              [attr.aria-label]="stepLabel(1)"
+              [disabled]="!canStep(1)"
+              (click)="stepAmount(1)"
+            >
+              <app-icon name="plus" />
+            </button>
+          </div>
+
+          @if (amount.mode === 'count') {
+            <div
+              class="mt-2 grid gap-1.5"
+              role="group"
+              [attr.aria-labelledby]="ids.units"
+              [style.grid-template-columns]="'repeat(' + countChips().length + ', minmax(0, 1fr))'"
+            >
+              @for (chip of countChips(); track chip.value) {
+                <button
+                  type="button"
+                  class="flex min-h-12 flex-col items-center justify-center rounded-xl border px-0.5 py-1 text-base leading-5 font-bold tabular-nums transition active:scale-95"
+                  [class]="
+                    chip.selected
+                      ? 'border-brand bg-brand/15 text-brand'
+                      : 'border-line/70 bg-surface text-fg hover:bg-surface-2'
+                  "
+                  [attr.aria-pressed]="chip.selected"
+                  [attr.aria-label]="chip.ariaLabel"
+                  (click)="pickCount(chip.value)"
+                >
+                  {{ chip.label }}
+                  @if (chip.detail) {
+                    <span class="text-[11px] leading-4 font-medium opacity-70">{{
+                      chip.detail
+                    }}</span>
+                  }
+                </button>
+              }
+            </div>
+          } @else if (amountChips().length > 0) {
+            <div
+              class="mt-2 grid grid-cols-2 gap-1.5"
+              role="group"
+              [attr.aria-labelledby]="ids.units"
+            >
+              @for (chip of amountChips(); track chip.value) {
+                <button
+                  type="button"
+                  class="flex min-h-12 flex-col items-center justify-center rounded-xl border px-1.5 py-1 text-sm leading-4 font-semibold transition active:scale-95"
+                  [class]="
+                    chip.selected
+                      ? 'border-brand bg-brand/15 text-brand'
+                      : 'border-line/70 bg-surface text-fg hover:bg-surface-2'
+                  "
+                  [attr.aria-pressed]="chip.selected"
+                  [attr.aria-label]="chip.ariaLabel"
+                  (click)="pickFactor(chip.value)"
+                >
+                  {{ chip.label }}
+                  @if (chip.detail) {
+                    <span class="mt-0.5 text-[11px] font-medium tabular-nums opacity-70">{{
+                      chip.detail
+                    }}</span>
+                  }
+                </button>
+              }
+            </div>
+          }
+
+          @if (aboutGrams(); as grams) {
+            <p
+              class="mt-1.5 flex items-center justify-center gap-1 text-xs text-muted tabular-nums"
+            >
+              About {{ grams }}
+              @if (amount.mode === 'count') {
+                <span aria-hidden="true">·</span>
+                <button
+                  type="button"
+                  class="-my-2 inline-flex min-h-10 items-center rounded-lg px-1.5 font-semibold text-brand"
+                  (click)="useGrams()"
+                >
+                  Enter grams instead
+                </button>
+              }
+            </p>
+          }
+          @if (!portionValid()) {
+            <p class="mt-1.5 text-center text-xs text-danger" role="alert">
+              Enter at least {{ minGrams }} g.
+            </p>
+          }
+
+          @if (offerCount()) {
+            @if (counting()) {
+              <form
+                class="mt-3 rounded-2xl border border-line/70 bg-surface-2 p-3"
+                aria-label="Save how many it was"
+                (submit)="savePortion($event)"
+              >
+                <div class="flex flex-wrap items-center gap-2 text-sm">
+                  <label class="font-medium text-fg" [for]="ids.count">{{ countLead() }}</label>
+                  <input
+                    #countInput
+                    type="text"
+                    inputmode="decimal"
+                    class="input h-10 w-14 px-1 text-center font-semibold tabular-nums"
+                    autocomplete="off"
+                    [id]="ids.count"
+                    [value]="countDraft()"
+                    (input)="onCountDraft($event)"
+                  />
+                  <input
+                    type="text"
+                    class="input h-10 min-w-0 flex-1 basis-24 px-2.5"
+                    autocomplete="off"
+                    enterkeyhint="done"
+                    aria-label="Unit, for example burgers"
+                    [id]="ids.unit"
+                    [attr.maxlength]="unitMax"
+                    [placeholder]="unitPlaceholder()"
+                    [value]="unitDraft()"
+                    (input)="onUnitDraft($event)"
+                  />
+                </div>
+                <p class="mt-2 text-xs leading-snug text-muted">
+                  Saved with this food, so next time you just pick how many, like 1½.
+                </p>
+                <div class="mt-2.5 flex gap-2">
+                  <button
+                    type="submit"
+                    class="btn btn-primary min-h-11 flex-1"
+                    [disabled]="!draftPortion() || locked()"
+                  >
+                    @if (savingCount()) {
+                      <app-spinner [size]="16" label="Saving" />
+                    }
+                    Save count
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-ghost min-h-11 px-3 text-muted"
+                    (click)="counting.set(false)"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            } @else {
+              <button
+                type="button"
+                class="mt-2 flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl text-sm font-semibold text-brand"
+                [disabled]="locked()"
+                (click)="startCounting()"
+              >
+                <app-icon name="plus" [size]="16" [strokeWidth]="2.5" />
+                Log by count instead
+              </button>
+            }
+          }
+        </section>
+      }
+
+      <div
+        class="flex items-center justify-between gap-3 rounded-2xl bg-surface-2 px-3.5 py-2.5"
+        aria-live="polite"
+      >
+        <p class="flex items-baseline gap-1 tabular-nums">
+          <span class="text-2xl leading-7 font-bold tracking-tight text-fg">{{ kcal() }}</span
+          >&ngsp;<span class="text-sm font-medium text-muted">kcal</span>
+        </p>
+        <p class="flex items-center gap-3 text-xs font-semibold text-fg/85 tabular-nums">
+          @for (macro of macros; track macro.key) {
+            <span class="flex items-center gap-1">
+              <span class="size-1.5 rounded-full" [style.background-color]="macro.color"></span>
+              <span class="sr-only">{{ macro.label }}</span>
+              <span aria-hidden="true" class="text-muted">{{ macro.short }}</span>
+              {{ macroValue(macro.key) }}
+            </span>
+          }
+        </p>
+      </div>
+
+      <div>
+        <span class="label" [id]="ids.meal">Meal</span>
+        <app-meal-type-picker
+          [value]="mealType()"
+          [ariaLabel]="null"
+          [labelledBy]="ids.meal"
+          (picked)="pickMealType($event)"
+        />
+      </div>
+
+      <div>
+        <label class="label" [for]="ids.time">When</label>
+        <input
+          type="datetime-local"
+          class="input text-left tabular-nums [&::-webkit-date-and-time-value]:text-left"
+          [id]="ids.time"
+          [value]="dateTime()"
+          [attr.aria-invalid]="timing() ? null : true"
+          (input)="onDateTime($event)"
+          (change)="onDateTime($event)"
+        />
+        <app-after-midnight-note [value]="dateTime()" />
+        @if (!timing()) {
+          <p class="mt-1.5 text-xs text-danger">Choose a valid date and time.</p>
+        }
+      </div>
+
+      <div
+        class="sticky bottom-[calc(-1.25rem-env(safe-area-inset-bottom))] -mx-5 mb-[calc(-1.25rem-env(safe-area-inset-bottom))] flex flex-col gap-1 border-t border-line/70 bg-elevated px-5 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
+      >
+        <button
+          type="button"
+          class="btn btn-primary min-h-13 w-full text-base"
+          autofocus
+          [disabled]="!canLog()"
+          (click)="log()"
+        >
+          @if (busy()) {
+            <app-spinner [size]="18" label="Logging" />
+            Logging…
+          } @else {
+            <app-icon name="check" [strokeWidth]="2.5" />
+            <span class="min-w-0 truncate">{{ logLabel() }}</span>
+          }
+        </button>
+        <button
+          type="button"
+          class="btn btn-ghost min-h-11 w-full text-sm text-muted"
+          [disabled]="locked() || !portionValid()"
+          (click)="editFirst()"
+        >
+          <app-icon name="edit" [size]="16" />
+          Edit before saving
+        </button>
+      </div>
+    </div>
+  }
+</app-bottom-sheet>

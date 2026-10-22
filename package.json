@@ -1,0 +1,41 @@
+{
+  "name": "food-tracker",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @food/shared && npm run build -w @food/api && npm run build -w @food/web",
+    "build:shared": "npm run build -w @food/shared",
+    "dev": "npm run build:shared && concurrently -k -n shared,api,web -c blue,green,magenta \"npm run dev -w @food/shared\" \"npm run start:dev -w @food/api\" \"npm run start -w @food/web\"",
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose stop db",
+    "db:migrate": "npm run db:migrate -w @food/api",
+    "typecheck": "npm run typecheck -w @food/shared && npm run typecheck -w @food/api && npm run typecheck -w @food/web",
+    "test": "npm run test -w @food/shared && npm run test -w @food/api && npm run test -w @food/web",
+    "test:e2e": "npm run test:e2e -w @food/api"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5",
+    "typescript": "~6.0.3"
+  },
+  "overrides": {
+    "mysql2": "^3.24.4",
+    "deepmerge-ts": "^8.0.2"
+  },
+  "engines": {
+    "node": ">=24.9"
+  },
+  "allowScripts": {
+    "@prisma/engines@7.10.0": true,
+    "prisma@7.10.0": true,
+    "argon2@0.45.1": true,
+    "esbuild@0.28.2": true,
+    "lmdb@3.5.6": true,
+    "@parcel/watcher@2.6.0": true,
+    "msgpackr-extract@3.0.4": true
+  }
+}

@@ -1,0 +1,121 @@
+<div
+  class="border-t border-line/60 bg-bg px-3 pt-2"
+  data-toast-clearance
+  data-testid="note-composer"
+  [style.padding-bottom]="bottomPadding()"
+>
+  <div class="mx-auto flex w-full max-w-2xl flex-col gap-1.5">
+    @if (attachments().length > 0 || preparing() > 0) {
+      <ul class="no-scrollbar flex gap-2 overflow-x-auto pt-2 pr-2" aria-label="Attached photos">
+        @for (photo of attachments(); track photo.id; let index = $index) {
+          <li class="relative shrink-0">
+            <img
+              class="size-16 rounded-xl bg-surface-2 object-cover ring-1 ring-line/70"
+              decoding="async"
+              draggable="false"
+              [attr.src]="photo.previewUrl"
+              [alt]="'Attached photo ' + (index + 1)"
+            />
+            <button
+              type="button"
+              class="absolute -top-1.5 -right-1.5 flex size-6 items-center justify-center rounded-full bg-fg text-bg shadow-soft before:absolute before:-inset-2.5 before:content-['']"
+              data-photo-remove
+              [attr.aria-label]="'Remove photo ' + (index + 1)"
+              (click)="removePhoto(photo, index)"
+            >
+              <app-icon name="close" [size]="14" [strokeWidth]="2.5" />
+            </button>
+          </li>
+        }
+        @for (slot of preparingSlots(); track slot) {
+          <li
+            class="flex size-16 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-muted ring-1 ring-line/70"
+          >
+            <app-spinner [size]="18" label="Preparing photo" />
+          </li>
+        }
+      </ul>
+    }
+
+    <label class="sr-only" [for]="fieldId">New note</label>
+    <textarea
+      #field
+      class="input max-h-41 resize-none rounded-2xl leading-6"
+      rows="1"
+      placeholder="Note to self"
+      autocapitalize="sentences"
+      enterkeyhint="enter"
+      [id]="fieldId"
+      [attr.maxlength]="textMax"
+      [value]="text()"
+      (input)="onInput($event)"
+      (keydown)="onKeydown($event)"
+    ></textarea>
+
+    <div class="flex items-start gap-1">
+      @if (!voiceBusy()) {
+        <button
+          type="button"
+          class="btn btn-ghost btn-icon -ml-1 text-fg"
+          aria-label="Take a photo"
+          data-add-photo
+          [disabled]="!canAddPhoto()"
+          (click)="camera.click()"
+        >
+          <app-icon name="camera" [size]="22" />
+        </button>
+        <button
+          type="button"
+          class="btn btn-ghost btn-icon text-fg"
+          aria-label="Add photos from the gallery"
+          [disabled]="!canAddPhoto()"
+          (click)="gallery.click()"
+        >
+          <app-icon name="image" [size]="22" />
+        </button>
+      }
+      <span class="flex min-h-11 min-w-0 flex-1 items-center justify-end px-1">
+        @if (showCounter()) {
+          <span class="text-[11px] text-muted tabular-nums" aria-live="polite">
+            {{ remaining() }} left
+          </span>
+        }
+      </span>
+      <app-voice-button class="min-w-0" (transcribed)="addTranscript($event)" />
+      <button
+        type="button"
+        class="btn btn-primary btn-icon"
+        aria-label="Send note"
+        data-send
+        [disabled]="!canSend()"
+        (mousedown)="$event.preventDefault()"
+        (click)="submit()"
+      >
+        <app-icon name="send" [size]="22" [strokeWidth]="2.4" />
+      </button>
+    </div>
+  </div>
+
+  <input
+    #camera
+    type="file"
+    accept="image/*"
+    capture="environment"
+    class="sr-only"
+    tabindex="-1"
+    aria-hidden="true"
+    data-camera-input
+    (change)="onFiles($event)"
+  />
+  <input
+    #gallery
+    type="file"
+    accept="image/*"
+    multiple
+    class="sr-only"
+    tabindex="-1"
+    aria-hidden="true"
+    data-gallery-input
+    (change)="onFiles($event)"
+  />
+</div>

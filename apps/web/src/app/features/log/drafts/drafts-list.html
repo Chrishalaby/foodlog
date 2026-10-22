@@ -1,0 +1,223 @@
+@if (views().length > 0) {
+  <section
+    class="animate-fade-in"
+    [class]="variant() === 'card' ? 'card overflow-hidden' : 'flex flex-col gap-2'"
+    [attr.aria-labelledby]="titleId"
+  >
+    <div
+      class="flex items-center gap-2"
+      [class]="variant() === 'card' ? 'border-b border-line/60 py-1.5 pr-1.5 pl-3.5' : ''"
+    >
+      @if (variant() === 'card') {
+        <span
+          class="flex size-7 shrink-0 items-center justify-center rounded-lg bg-warn/15 text-warn"
+          aria-hidden="true"
+        >
+          <app-icon name="clock" [size]="15" [strokeWidth]="2.25" />
+        </span>
+      }
+      <h2
+        class="flex flex-1 items-center gap-1.5 outline-none"
+        [class]="variant() === 'card' ? 'text-[15px] font-semibold text-fg' : 'section-title'"
+        tabindex="-1"
+        data-drafts-title
+        [id]="titleId"
+      >
+        Drafts
+        <span
+          class="rounded-full bg-surface-2 px-1.5 py-px text-[11px] font-semibold text-muted tabular-nums"
+          >{{ count() }}</span
+        >
+      </h2>
+      @if (hidden() > 0) {
+        <a
+          class="inline-flex min-h-11 items-center gap-0.5 rounded-xl px-2 text-xs font-semibold text-brand"
+          routerLink="/log"
+          [queryParams]="{ drafts: 1 }"
+        >
+          See all
+          <app-icon name="chevron-right" [size]="14" [strokeWidth]="2.5" />
+        </a>
+      }
+    </div>
+
+    <ul
+      class="flex flex-col divide-y divide-line/60"
+      [class]="variant() === 'card' ? '' : 'card overflow-hidden'"
+    >
+      @for (view of views(); track view.row.key) {
+        <li class="flex items-center" [attr.aria-busy]="actions.busyKey() === view.row.key">
+          <button
+            type="button"
+            class="flex min-h-16 min-w-0 flex-1 items-center gap-3 py-2.5 pr-1 pl-3.5 text-left transition active:bg-surface-2 disabled:opacity-60"
+            [attr.aria-label]="'Open draft: ' + view.label"
+            [disabled]="actions.busyKey() === view.row.key"
+            (click)="open(view)"
+          >
+            <span class="relative size-11 shrink-0" aria-hidden="true">
+              @if (view.row.thumbs[0]; as thumb) {
+                <img
+                  class="size-11 rounded-xl bg-surface-2 object-cover"
+                  alt=""
+                  width="44"
+                  height="44"
+                  loading="lazy"
+                  decoding="async"
+                  draggable="false"
+                  [src]="thumb"
+                />
+              } @else {
+                <span
+                  class="flex size-11 items-center justify-center rounded-xl bg-surface-2 text-muted"
+                >
+                  <app-icon [name]="view.icon" [size]="20" />
+                </span>
+              }
+              @if (view.more > 0) {
+                <span
+                  class="absolute -right-1 -bottom-1 rounded-full bg-elevated px-1.5 text-[10px] leading-4 font-bold text-fg shadow-soft ring-1 ring-line/70 tabular-nums"
+                  >+{{ view.more }}</span
+                >
+              }
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-[15px] leading-5 font-semibold text-fg">{{
+                view.row.title
+              }}</span>
+              <span class="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs leading-4 text-muted">
+                <span class="shrink-0 tabular-nums">{{ view.row.when }}</span>
+                <span class="shrink-0" aria-hidden="true">·</span>
+                @if (view.row.upload === 'uploading') {
+                  <app-spinner class="shrink-0 text-warn" [size]="12" label="Uploading" />
+                } @else if (view.row.upload === 'waiting') {
+                  <app-icon class="shrink-0 text-warn" name="wifi-off" [size]="12" />
+                } @else if (view.row.upload === 'failed') {
+                  <app-icon class="shrink-0 text-danger" name="alert" [size]="12" />
+                } @else if (view.ready) {
+                  <app-icon
+                    class="shrink-0 text-brand"
+                    name="check"
+                    [size]="12"
+                    [strokeWidth]="3"
+                  />
+                }
+                <span class="truncate font-semibold" [class]="view.tone">{{ view.state }}</span>
+              </span>
+            </span>
+          </button>
+          <button
+            type="button"
+            class="btn btn-ghost btn-icon mr-1 shrink-0 text-muted"
+            aria-haspopup="dialog"
+            [attr.aria-label]="'More options for draft ' + view.row.title"
+            [disabled]="actions.busyKey() === view.row.key"
+            (click)="showActions(view)"
+          >
+            <app-icon name="more-horizontal" [size]="20" />
+          </button>
+        </li>
+      }
+    </ul>
+  </section>
+
+  <app-bottom-sheet [(open)]="sheetOpen" ariaLabel="Draft options">
+    @if (selected(); as view) {
+      <div class="flex flex-col gap-3">
+        <header class="flex items-center gap-3">
+          <span class="relative size-11 shrink-0" aria-hidden="true">
+            @if (view.row.thumbs[0]; as thumb) {
+              <img
+                class="size-11 rounded-xl bg-surface-2 object-cover"
+                alt=""
+                width="44"
+                height="44"
+                [src]="thumb"
+              />
+            } @else {
+              <span
+                class="flex size-11 items-center justify-center rounded-xl bg-surface-2 text-muted"
+              >
+                <app-icon [name]="view.icon" [size]="20" />
+              </span>
+            }
+          </span>
+          <div class="min-w-0 flex-1">
+            <h2 class="truncate text-lg leading-6 font-semibold tracking-tight">
+              {{ view.row.title }}
+            </h2>
+            <p class="truncate text-xs text-muted tabular-nums">
+              {{ view.row.when }} · {{ view.summary }}
+            </p>
+          </div>
+          <button
+            type="button"
+            class="btn btn-ghost btn-icon -mr-2 text-muted"
+            aria-label="Close"
+            (click)="sheetOpen.set(false)"
+          >
+            <app-icon name="close" [size]="22" />
+          </button>
+        </header>
+
+        <div class="-mx-2 flex flex-col" role="group" aria-label="Draft actions">
+          @if (!view.row.analysed) {
+            <button type="button" class="draft-action" (click)="open(view, true)">
+              <span class="draft-action-icon bg-brand/12 text-brand">
+                <app-icon name="sparkles" [size]="18" />
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="block text-[15px] leading-5 font-semibold text-fg">Analyze now</span>
+                <span class="block text-xs text-muted">Get the nutrition estimate</span>
+              </span>
+            </button>
+            <button type="button" class="draft-action" (click)="open(view)">
+              <span class="draft-action-icon bg-accent/15 text-accent">
+                <app-icon name="edit" [size]="18" />
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="block text-[15px] leading-5 font-semibold text-fg">Add details</span>
+                <span class="block text-xs text-muted">Describe it before analysing</span>
+              </span>
+            </button>
+          } @else {
+            <button type="button" class="draft-action" (click)="open(view)">
+              <span class="draft-action-icon bg-brand/12 text-brand">
+                <app-icon name="check" [size]="18" [strokeWidth]="2.5" />
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="block text-[15px] leading-5 font-semibold text-fg"
+                  >Review &amp; log</span
+                >
+                <span class="block text-xs text-muted">Check the items, then save to your log</span>
+              </span>
+            </button>
+          }
+          @if (view.row.upload === 'failed') {
+            <button type="button" class="draft-action" (click)="retryUpload(view)">
+              <span class="draft-action-icon bg-warn/15 text-warn">
+                <app-icon name="refresh" [size]="18" />
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="block text-[15px] leading-5 font-semibold text-fg"
+                  >Try uploading again</span
+                >
+                <span class="block text-xs text-muted">{{ view.row.failure }}</span>
+              </span>
+            </button>
+          }
+          <button type="button" class="draft-action" (click)="remove(view)">
+            <span class="draft-action-icon bg-danger/12 text-danger">
+              <app-icon name="trash" [size]="18" />
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block text-[15px] leading-5 font-semibold text-danger"
+                >Delete draft</span
+              >
+              <span class="block text-xs text-muted">Removes its photos and details</span>
+            </span>
+          </button>
+        </div>
+      </div>
+    }
+  </app-bottom-sheet>
+}

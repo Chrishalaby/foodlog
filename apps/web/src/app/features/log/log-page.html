@@ -1,0 +1,33 @@
+@switch (store.view()) {
+  @case ('idle') {
+    <app-capture-home
+      [focusSearch]="searchFocusPending()"
+      [focusDrafts]="drafts() !== undefined"
+      (searchFocused)="searchFocusPending.set(false)"
+      (describe)="startText($event)"
+      (manual)="startManual()"
+      (edit)="editDraft($event)"
+    />
+  }
+  @case ('compose') {
+    <app-compose-panel (close)="discard()" (manual)="startManual()" (saveDraft)="saveDraft()" />
+  }
+  @case ('analyzing') {
+    <app-analyzing-panel (cancel)="store.cancelAnalysis()" />
+  }
+  @case ('meals') {
+    <app-meals-panel (discard)="discard()" (save)="saveMeals()" />
+  }
+  @case ('review') {
+    <app-review-panel
+      (discard)="discard()"
+      (save)="save()"
+      (saveDraft)="saveDraft()"
+      (followUp)="followUp($event)"
+      (correct)="correct($event)"
+      (recheck)="recheck()"
+    />
+  }
+}
+
+<app-barcode-flow />

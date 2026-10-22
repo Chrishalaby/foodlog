@@ -1,0 +1,62 @@
+@if (flow.scanning()) {
+  <app-barcode-scanner (detected)="onDetected($event)" (closed)="flow.closeScanner()" />
+}
+
+<app-bottom-sheet
+  [open]="flow.sheetOpen()"
+  [ariaLabel]="sheetLabel()"
+  (openChange)="onSheetOpenChange($event)"
+>
+  @if (found(); as current) {
+    <app-product-details
+      [product]="current.product"
+      [barcode]="current.barcode"
+      [busy]="flow.busy() === 'log'"
+      (logged)="logProduct(current.product, $event)"
+      (editValues)="flow.editValues()"
+      (scanAgain)="flow.openScanner()"
+      (closed)="closeSheet()"
+    />
+  } @else if (editing(); as current) {
+    <app-product-editor
+      [product]="current.product"
+      [barcode]="current.barcode"
+      [busy]="flow.busy() === 'save'"
+      [error]="flow.saveError()"
+      (saved)="saveProduct($event)"
+      (cancelled)="flow.cancelEdit()"
+    />
+  } @else if (step().kind === 'missing' || step().kind === 'failed') {
+    <app-product-missing
+      [barcode]="flow.barcode() ?? ''"
+      [problem]="problem()"
+      [galleryBusy]="flow.imageBusy()"
+      [galleryMessage]="flow.imageMessage()"
+      (galleryImage)="lookupImage($event)"
+      (retry)="flow.retry()"
+      (scanLabel)="scanLabel()"
+      (describe)="describe()"
+      (manual)="flow.enterManually()"
+      (scanAgain)="flow.openScanner()"
+    />
+  } @else if (step().kind === 'lookup') {
+    <div class="flex flex-col gap-4" aria-busy="true">
+      <header class="flex items-start gap-3">
+        <app-skeleton class="size-16 shrink-0 rounded-2xl" />
+        <div class="flex min-w-0 flex-1 flex-col gap-2 pt-1">
+          <app-skeleton class="w-3/4" shape="text" />
+          <app-skeleton class="w-1/2" shape="text" />
+        </div>
+      </header>
+      <p class="flex items-center justify-center gap-2 text-sm text-muted" role="status">
+        <app-spinner [size]="18" label="Looking up the barcode" />
+        <span class="tabular-nums">Looking up {{ code() }}…</span>
+      </p>
+      <app-skeleton class="h-12 w-full" />
+      <app-skeleton class="h-12 w-full" />
+      <button type="button" class="btn btn-ghost min-h-11 w-full text-muted" (click)="closeSheet()">
+        Cancel
+      </button>
+    </div>
+  }
+</app-bottom-sheet>

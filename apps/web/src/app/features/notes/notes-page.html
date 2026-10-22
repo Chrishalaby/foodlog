@@ -1,0 +1,200 @@
+<header class="shrink-0 border-b border-line/60 bg-bg pt-safe">
+  <div class="mx-auto flex w-full max-w-2xl flex-col gap-2 px-4 pt-2 pb-2.5">
+    <div class="flex min-h-11 items-center gap-1.5">
+      <h1 class="min-w-0 flex-1 truncate text-[22px] leading-7 font-bold tracking-tight text-fg">
+        Notes
+      </h1>
+      @if (!online()) {
+        <span class="chip text-warn" role="status">
+          <app-icon name="wifi-off" [size]="12" />
+          Offline
+        </span>
+      }
+      @if (install.canPrompt()) {
+        <button
+          type="button"
+          class="btn btn-secondary px-3.5 text-sm"
+          data-install
+          (click)="installApp()"
+        >
+          <app-icon name="download" [size]="16" />
+          Install
+        </button>
+      }
+      <button
+        type="button"
+        class="btn btn-ghost btn-icon -mr-2"
+        data-search-toggle
+        [attr.aria-label]="searchOpen() ? 'Close search' : 'Search notes'"
+        [attr.aria-expanded]="searchOpen()"
+        (click)="toggleSearch()"
+      >
+        <app-icon [name]="searchOpen() ? 'close' : 'search'" [size]="22" />
+      </button>
+    </div>
+
+    @if (searchOpen()) {
+      <div class="relative animate-fade-in" role="search">
+        <app-icon
+          class="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted"
+          name="search"
+          [size]="18"
+        />
+        <label class="sr-only" for="notes-search">Search notes</label>
+        <input
+          #searchField
+          id="notes-search"
+          type="search"
+          class="input pr-11 pl-10 [&::-webkit-search-cancel-button]:hidden"
+          placeholder="Search notes"
+          autocomplete="off"
+          autocapitalize="none"
+          enterkeyhint="search"
+          [attr.maxlength]="searchMax"
+          [value]="searchText()"
+          (input)="onSearch($event)"
+          (keydown.escape)="closeSearch()"
+        />
+        @if (store.busy() && store.query() !== '') {
+          <app-spinner
+            class="absolute top-1/2 right-3.5 -translate-y-1/2 text-muted"
+            label="Searching"
+            [size]="16"
+          />
+        }
+      </div>
+    }
+
+    <app-segmented-control
+      ariaLabel="Which notes to show"
+      [options]="filters"
+      [value]="store.filter()"
+      (valueChange)="setFilter($event)"
+    />
+  </div>
+</header>
+
+<div
+  #feed
+  class="min-h-0 flex-1 overflow-y-auto overscroll-contain [overflow-anchor:none]"
+  data-testid="notes-feed"
+  (scroll)="onScroll()"
+>
+  <main
+    id="main-content"
+    class="mx-auto flex min-h-full w-full max-w-2xl flex-col justify-end gap-2 px-4 py-3"
+  >
+    @if (store.hasEarlier()) {
+      <div class="flex justify-center">
+        @if (store.earlier() === 'loading') {
+          <span class="flex min-h-11 items-center gap-2 text-sm text-muted" role="status">
+            <app-spinner label="Loading earlier notes" [size]="16" />
+            Loading earlier notes…
+          </span>
+        } @else {
+          <button
+            type="button"
+            class="btn btn-secondary rounded-full px-4 text-sm"
+            data-load-earlier
+            (click)="loadEarlier()"
+          >
+            <app-icon name="chevron-up" [size]="16" />
+            {{ store.earlier() === 'error' ? 'Try loading earlier notes again' : 'Load earlier' }}
+          </button>
+        }
+      </div>
+    }
+
+    @switch (store.status()) {
+      @case ('ready') {
+        @if (days().length === 0) {
+          @if (store.filtered()) {
+            <app-empty-state
+              class="my-auto"
+              icon="search"
+              title="Nothing here"
+              [text]="emptyMessage()"
+            >
+              <button type="button" class="btn btn-secondary" (click)="showAll()">
+                Show all notes
+              </button>
+            </app-empty-state>
+          } @else {
+            <app-empty-state
+              class="my-auto"
+              icon="edit"
+              title="Notes to self"
+              text="Write it down before you forget: a to-do, a photo with a caption, a link. Tick it off when it's done."
+            />
+          }
+        }
+      }
+      @case ('error') {
+        <div
+          class="card my-auto flex flex-col items-center gap-3 px-5 py-8 text-center"
+          role="alert"
+        >
+          <span
+            class="flex size-12 items-center justify-center rounded-2xl bg-danger/12 text-danger"
+            aria-hidden="true"
+          >
+            <app-icon name="alert" [size]="24" />
+          </span>
+          <div>
+            <p class="font-semibold text-fg">Notes unavailable</p>
+            <p class="mt-1 text-sm text-muted">{{ store.error() }}</p>
+          </div>
+          <button type="button" class="btn btn-primary" (click)="retryLoad()">
+            <app-icon name="refresh" [size]="18" />
+            Try again
+          </button>
+        </div>
+      }
+      @default {
+        <div class="flex flex-col gap-2" aria-hidden="true" data-testid="notes-skeleton">
+          @for (width of skeletonWidths; track $index) {
+            <div class="flex items-start gap-0.5">
+              <span class="-ml-2.5 flex size-11 shrink-0 items-center justify-center">
+                <app-skeleton class="size-6" shape="circle" />
+              </span>
+              <app-skeleton class="h-16" [style.width]="width" />
+            </div>
+          }
+        </div>
+        <span class="sr-only" role="status">Loading notes…</span>
+      }
+    }
+
+    @for (day of days(); track day.date) {
+      <section class="flex flex-col gap-2" [attr.aria-label]="day.label">
+        <h2
+          class="my-1 self-center rounded-full border border-line/60 bg-elevated px-3 py-1 text-xs font-semibold text-muted"
+          data-day
+        >
+          {{ day.label }}
+        </h2>
+        @for (note of day.notes; track note.key) {
+          <app-note-card
+            [note]="note"
+            (toggled)="toggleDone(note)"
+            (menu)="openMenu(note)"
+            (photoOpened)="openPhoto(note, $event)"
+            (retried)="retry(note)"
+            (discarded)="discard(note)"
+          />
+        }
+      </section>
+    }
+  </main>
+</div>
+
+<app-note-composer [(text)]="draft" (submitted)="send($event)" />
+
+<app-photo-viewer [photos]="viewerPhotos()" [(index)]="viewerIndex" [(open)]="viewerOpen" />
+<app-note-actions-sheet
+  [note]="menuNote()"
+  [(open)]="menuOpen"
+  (edited)="saveEdit($event)"
+  (copied)="copy($event)"
+  (deleted)="remove($event)"
+/>

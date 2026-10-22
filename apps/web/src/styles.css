@@ -1,0 +1,319 @@
+@import 'tailwindcss' source('./');
+
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+@custom-variant light (&:where([data-theme=light], [data-theme=light] *));
+
+:root {
+  color-scheme: dark;
+  --app-bg: #0a0d12;
+  --app-surface: #12161d;
+  --app-surface-2: #1a1f28;
+  --app-elevated: #20262f;
+  --app-fg: #eef1f5;
+  --app-muted: #9aa4b2;
+  --app-line: #262d38;
+  --app-field-line: #6b7585;
+  --app-brand: #4ade80;
+  --app-brand-strong: #6ee79b;
+  --app-brand-fg: #03250f;
+  --app-accent: #8b9cff;
+  --app-warn: #fbbf4a;
+  --app-danger: #ff6b6b;
+  --app-danger-fg: #1f0406;
+  --app-ok: #34d6a0;
+  --app-calories: #ff9f43;
+  --app-protein: #ff6b8b;
+  --app-carbs: #ffe066;
+  --app-fat: #5cb8ff;
+  --app-fiber: #8bd77a;
+  --app-satfat: #c792ff;
+  --app-sugar: #ff8fd1;
+  --app-sodium: #5ee0e0;
+  --app-alcohol: #b3a4ff;
+  --app-fluid: #4fc3ff;
+  --app-shadow: 0 1px 0 0 rgb(255 255 255 / 0.04) inset, 0 12px 32px -16px rgb(0 0 0 / 0.7);
+  --app-shadow-lg: 0 1px 0 0 rgb(255 255 255 / 0.05) inset, 0 24px 48px -12px rgb(0 0 0 / 0.75);
+  --app-backdrop: rgb(3 5 9 / 0.66);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --app-bg: #f4f6f9;
+  --app-surface: #ffffff;
+  --app-surface-2: #eef1f5;
+  --app-elevated: #ffffff;
+  --app-fg: #0d131a;
+  --app-muted: #556070;
+  --app-line: #e0e5ec;
+  --app-field-line: #7e8896;
+  --app-brand: #127336;
+  --app-brand-strong: #0e5f2b;
+  --app-brand-fg: #ffffff;
+  --app-accent: #4955d4;
+  --app-warn: #a24a08;
+  --app-danger: #bb2536;
+  --app-danger-fg: #ffffff;
+  --app-ok: #0e7254;
+  --app-calories: #b0520a;
+  --app-protein: #b82851;
+  --app-carbs: #786600;
+  --app-fat: #1b64b6;
+  --app-fiber: #2e7225;
+  --app-satfat: #7e3dd4;
+  --app-sugar: #a93580;
+  --app-sodium: #096e74;
+  --app-alcohol: #6951c2;
+  --app-fluid: #0b6aa6;
+  --app-shadow: 0 1px 2px 0 rgb(13 19 26 / 0.05), 0 8px 24px -12px rgb(13 19 26 / 0.14);
+  --app-shadow-lg: 0 2px 4px 0 rgb(13 19 26 / 0.06), 0 24px 48px -16px rgb(13 19 26 / 0.22);
+  --app-backdrop: rgb(13 19 26 / 0.38);
+}
+
+@theme inline {
+  --color-bg: var(--app-bg);
+  --color-surface: var(--app-surface);
+  --color-surface-2: var(--app-surface-2);
+  --color-elevated: var(--app-elevated);
+  --color-fg: var(--app-fg);
+  --color-muted: var(--app-muted);
+  --color-line: var(--app-line);
+  --color-field-line: var(--app-field-line);
+  --color-brand: var(--app-brand);
+  --color-brand-strong: var(--app-brand-strong);
+  --color-brand-fg: var(--app-brand-fg);
+  --color-accent: var(--app-accent);
+  --color-warn: var(--app-warn);
+  --color-danger: var(--app-danger);
+  --color-danger-fg: var(--app-danger-fg);
+  --color-ok: var(--app-ok);
+  --color-calories: var(--app-calories);
+  --color-protein: var(--app-protein);
+  --color-carbs: var(--app-carbs);
+  --color-fat: var(--app-fat);
+  --color-fiber: var(--app-fiber);
+  --color-satfat: var(--app-satfat);
+  --color-sugar: var(--app-sugar);
+  --color-sodium: var(--app-sodium);
+  --color-alcohol: var(--app-alcohol);
+  --color-fluid: var(--app-fluid);
+  --shadow-soft: var(--app-shadow);
+  --shadow-lifted: var(--app-shadow-lg);
+}
+
+@theme {
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+  --radius-card: 1.25rem;
+  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+  --animate-toast-in: toast-in 260ms var(--ease-spring) both;
+  --animate-fade-in: fade-in 200ms ease-out both;
+  --animate-pop-in: pop-in 220ms var(--ease-spring) both;
+
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(var(--toast-enter-offset, -12px)) scale(0.97);
+    }
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: scale(0.94);
+    }
+  }
+}
+
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@utility pl-safe {
+  padding-left: env(safe-area-inset-left);
+}
+
+@utility pr-safe {
+  padding-right: env(safe-area-inset-right);
+}
+
+@utility px-safe {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+@utility top-safe {
+  top: env(safe-area-inset-top);
+}
+
+@utility h-safe-top {
+  height: env(safe-area-inset-top);
+}
+
+@utility pb-nav {
+  padding-bottom: calc(7rem + env(safe-area-inset-bottom));
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@layer base {
+  html {
+    background-color: var(--color-bg);
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-bg font-sans text-fg antialiased;
+    min-height: 100dvh;
+    -webkit-tap-highlight-color: transparent;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: color-mix(in srgb, var(--app-brand) 35%, transparent);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--app-brand);
+    outline-offset: 2px;
+  }
+
+  button,
+  [role='button'],
+  summary,
+  label[for] {
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  button:disabled {
+    cursor: default;
+  }
+
+  input[inputmode='decimal'],
+  input[inputmode='numeric'],
+  input[type='number'] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  img {
+    -webkit-user-drag: none;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-[15px] leading-5 font-semibold whitespace-nowrap transition duration-150 select-none active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply bg-brand text-brand-fg shadow-soft hover:bg-brand-strong;
+  }
+
+  .btn-secondary {
+    @apply border border-line bg-surface-2 text-fg hover:bg-elevated;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent text-fg hover:bg-surface-2 active:bg-surface-2;
+  }
+
+  .btn-danger {
+    @apply bg-danger text-danger-fg hover:opacity-90;
+  }
+
+  .btn-icon {
+    @apply size-11 shrink-0 rounded-full p-0;
+  }
+
+  .card {
+    @apply rounded-card border border-line/70 bg-surface shadow-soft;
+  }
+
+  .input {
+    @apply block min-h-11 w-full rounded-xl border border-field-line bg-surface-2 px-3.5 py-2.5 text-base text-fg transition outline-none placeholder:text-muted focus:border-brand focus:ring-4 focus:ring-brand/20 disabled:opacity-60 aria-invalid:border-danger aria-invalid:focus:ring-danger/20;
+  }
+
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-muted;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full bg-surface-2 px-2.5 py-1 text-xs leading-4 font-medium text-muted;
+  }
+
+  .section-title {
+    @apply text-xs font-semibold tracking-[0.08em] text-muted uppercase;
+  }
+}
+
+.status-bar-scrim {
+  display: none;
+}
+
+@media (display-mode: standalone) {
+  @supports (-webkit-touch-callout: none) {
+    :root[data-theme='light'] .status-bar-scrim {
+      display: block;
+      position: fixed;
+      inset: 0 0 auto;
+      z-index: 70;
+      height: env(safe-area-inset-top);
+      background-color: var(--app-fg);
+      pointer-events: none;
+    }
+  }
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 160ms;
+}
+
+html[data-scroll-locked] {
+  overflow: hidden;
+  overscroll-behavior: none;
+  scrollbar-gutter: stable;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
+
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+
+  .animate-spin {
+    animation-duration: 1.6s !important;
+    animation-iteration-count: infinite !important;
+  }
+}

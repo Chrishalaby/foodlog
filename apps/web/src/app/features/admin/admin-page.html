@@ -1,0 +1,188 @@
+<app-page-header
+  title="Admin"
+  subtitle="People, invites and access"
+  backLink="/settings"
+  backLabel="Back to settings"
+>
+  <button
+    type="button"
+    class="btn btn-ghost btn-icon"
+    aria-label="Refresh"
+    [disabled]="store.state() !== 'ready' || store.refreshing()"
+    (click)="refreshNow()"
+  >
+    <app-icon [class.animate-spin]="store.refreshing()" name="refresh" [size]="20" />
+  </button>
+</app-page-header>
+
+@switch (store.state()) {
+  @case ('loading') {
+    <div class="flex flex-col gap-3 px-4" aria-busy="true" aria-label="Loading admin panel">
+      <div class="grid grid-cols-3 gap-2.5">
+        @for (i of [0, 1, 2]; track i) {
+          <app-skeleton class="h-[74px] rounded-2xl" />
+        }
+      </div>
+      <app-skeleton class="h-[92px] rounded-2xl" />
+      <app-skeleton class="h-12 rounded-2xl" />
+      @for (i of [0, 1, 2]; track i) {
+        <app-skeleton class="h-24 rounded-card" />
+      }
+    </div>
+  }
+  @case ('forbidden') {
+    <div class="px-4">
+      <div class="card">
+        <app-empty-state
+          icon="lock"
+          title="Admins only"
+          text="Your account can’t open the admin panel. Ask the owner if you think this is wrong."
+        >
+          <a class="btn btn-primary" routerLink="/today">Back to Today</a>
+        </app-empty-state>
+      </div>
+    </div>
+  }
+  @case ('error') {
+    <div class="px-4">
+      <div class="card" role="alert">
+        <app-empty-state icon="alert" title="Admin panel didn’t load" [text]="store.error() ?? ''">
+          <button type="button" class="btn btn-primary" (click)="retry()">
+            <app-icon name="refresh" [size]="18" />
+            Try again
+          </button>
+        </app-empty-state>
+      </div>
+    </div>
+  }
+  @default {
+    <section class="flex flex-col gap-2.5 px-4" aria-label="Overview">
+      <div class="grid grid-cols-3 gap-2.5">
+        @for (tile of tiles(); track tile.label) {
+          <button
+            type="button"
+            class="flex min-h-[74px] flex-col items-start justify-between rounded-2xl border border-line/70 bg-surface px-3 py-2.5 text-left shadow-soft transition active:scale-[0.98]"
+            [class.border-warn]="tile.alert"
+            (click)="select(tile.tab)"
+          >
+            <span class="text-xs font-medium text-muted">{{ tile.label }}</span>
+            <span
+              class="text-[22px] leading-7 font-bold tabular-nums"
+              [class.text-warn]="tile.alert"
+              [class.text-fg]="!tile.alert"
+            >
+              {{ tile.value }}
+            </span>
+          </button>
+        }
+      </div>
+      @if (spend(); as s) {
+        <div class="rounded-2xl border border-line/70 bg-surface px-3.5 py-3 shadow-soft">
+          <div class="flex items-center justify-between gap-3">
+            <p class="flex items-center gap-2 text-xs font-medium text-muted">
+              <app-icon name="wallet" [size]="16" />
+              AI spend this month
+            </p>
+            <p class="text-xs text-muted tabular-nums">{{ s.requests }}</p>
+          </div>
+          <p class="mt-1 flex items-baseline gap-1.5">
+            <span class="text-[22px] leading-7 font-bold text-fg tabular-nums">{{ s.cost }}</span>
+            <span class="truncate text-xs text-muted">{{ s.budget }}</span>
+          </p>
+          @if (s.status; as status) {
+            <div
+              class="mt-2 h-2 overflow-hidden rounded-full bg-surface-2"
+              role="progressbar"
+              aria-label="Global AI budget used"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              [attr.aria-valuenow]="status.percent"
+            >
+              <div
+                class="h-full rounded-full transition-[width]"
+                [class]="s.barClass"
+                [style.width.%]="status.fillPercent"
+              ></div>
+            </div>
+          }
+        </div>
+      }
+    </section>
+
+    <div class="sticky top-safe z-20 mt-3 bg-bg/85 px-4 py-2 backdrop-blur-xl">
+      <div
+        class="grid grid-cols-3 gap-1 rounded-2xl border border-line/70 bg-surface-2 p-1"
+        role="tablist"
+        aria-label="Admin sections"
+      >
+        @for (tab of tabs; track tab; let i = $index) {
+          <button
+            type="button"
+            role="tab"
+            class="relative flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 text-sm font-semibold transition duration-150"
+            [id]="'admin-tab-' + tab"
+            [class.bg-elevated]="activeTab() === tab"
+            [class.text-fg]="activeTab() === tab"
+            [class.shadow-soft]="activeTab() === tab"
+            [class.text-muted]="activeTab() !== tab"
+            [attr.aria-selected]="activeTab() === tab"
+            [attr.aria-controls]="activeTab() === tab ? 'admin-panel-' + tab : null"
+            [attr.tabindex]="activeTab() === tab ? 0 : -1"
+            (click)="select(tab)"
+            (keydown)="onTabKeydown($event, i)"
+          >
+            <span class="truncate">{{ tabLabels[tab] }}</span>
+            @if (counts()[tab] > 0) {
+              <span
+                class="min-w-5 rounded-full px-1.5 text-[11px] leading-5 font-bold tabular-nums"
+                [class]="tab === 'requests' ? 'bg-warn text-bg' : 'bg-line text-fg'"
+              >
+                {{ counts()[tab] }}
+                <span class="sr-only">{{ tab === 'requests' ? 'pending' : '' }}</span>
+              </span>
+            }
+          </button>
+        }
+      </div>
+    </div>
+
+    <div
+      class="px-4 pt-2"
+      role="tabpanel"
+      [class.pb-20]="showInviteAction()"
+      [id]="'admin-panel-' + activeTab()"
+      [attr.aria-labelledby]="'admin-tab-' + activeTab()"
+    >
+      @switch (activeTab()) {
+        @case ('requests') {
+          <app-requests-tab (invite)="openInvite()" />
+        }
+        @case ('people') {
+          <app-people-tab (invite)="openInvite()" />
+        }
+        @case ('invites') {
+          <app-invites-tab (invite)="openInvite()" />
+        }
+      }
+    </div>
+
+    @if (showInviteAction()) {
+      <div
+        class="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] z-30 mx-auto flex max-w-2xl justify-end px-4"
+        data-toast-clearance
+      >
+        <button
+          type="button"
+          class="btn btn-primary pointer-events-auto min-h-12 animate-pop-in rounded-full px-5 shadow-lifted"
+          aria-haspopup="dialog"
+          (click)="openInvite()"
+        >
+          <app-icon name="user-plus" [size]="20" />
+          Invite someone
+        </button>
+      </div>
+    }
+  }
+}
+
+<app-invite-sheet [(open)]="inviteOpen" />

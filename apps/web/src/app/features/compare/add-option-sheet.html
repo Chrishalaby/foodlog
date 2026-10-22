@@ -1,0 +1,554 @@
+<app-bottom-sheet [(open)]="open" [title]="title()">
+  @if (step() !== 'sources') {
+    <button
+      type="button"
+      class="btn btn-ghost -ml-3 min-h-10 px-3 text-sm text-muted"
+      (click)="goTo('sources')"
+    >
+      <app-icon name="chevron-left" [size]="18" />
+      All ways to add
+    </button>
+  }
+
+  @switch (step()) {
+    @case ('sources') {
+      @if (full()) {
+        <p class="mb-3 rounded-2xl bg-warn/10 px-3.5 py-2.5 text-sm text-warn" role="status">
+          {{ fullMessage }}
+        </p>
+      }
+      <div class="flex flex-col gap-1.5">
+        @if (lastMenu(); as menu) {
+          <button
+            type="button"
+            class="flex min-h-16 w-full items-center gap-3.5 rounded-2xl border border-brand/30 bg-brand/8 px-3 py-2.5 text-left transition active:bg-surface-2 disabled:opacity-50"
+            [disabled]="full()"
+            (click)="goTo('dishes')"
+          >
+            <span
+              class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand text-brand-fg"
+            >
+              <app-icon name="utensils" />
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block font-semibold text-fg">Pick from your last menu</span>
+              <span class="block truncate text-xs text-muted">
+                {{ menu.restaurant ?? 'Menu' }} · {{ menu.dishes.length }}
+                {{ menu.dishes.length === 1 ? 'dish' : 'dishes' }}
+              </span>
+            </span>
+            <app-icon class="text-muted" name="chevron-right" [size]="18" />
+          </button>
+        }
+        <button
+          type="button"
+          class="flex min-h-16 w-full items-center gap-3.5 rounded-2xl px-3 py-2.5 text-left transition hover:bg-surface-2 active:bg-surface-2 disabled:opacity-50"
+          [disabled]="full()"
+          (click)="goTo('search')"
+        >
+          <span
+            class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand text-brand-fg"
+          >
+            <app-icon name="search" />
+          </span>
+          <span class="min-w-0 flex-1">
+            <span class="block font-semibold text-fg">Search my foods</span>
+            <span class="block text-xs text-muted">Favorites, meals and products · instant</span>
+          </span>
+        </button>
+        <button
+          type="button"
+          class="flex min-h-16 w-full items-center gap-3.5 rounded-2xl px-3 py-2.5 text-left transition hover:bg-surface-2 active:bg-surface-2 disabled:opacity-50"
+          [disabled]="full()"
+          (click)="startScan()"
+        >
+          <span
+            class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent"
+          >
+            <app-icon name="barcode" />
+          </span>
+          <span class="min-w-0 flex-1">
+            <span class="block font-semibold text-fg">Scan barcode</span>
+            <span class="block text-xs text-muted">Packaged food · instant</span>
+          </span>
+        </button>
+        @if (ai.enabled()) {
+          <button
+            type="button"
+            class="flex min-h-16 w-full items-center gap-3.5 rounded-2xl px-3 py-2.5 text-left transition hover:bg-surface-2 active:bg-surface-2 disabled:opacity-50"
+            [disabled]="full()"
+            (click)="goTo('describe')"
+          >
+            <span
+              class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-fat/15 text-fat"
+            >
+              <app-icon name="text" />
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block font-semibold text-fg">Describe it</span>
+              <span class="block text-xs text-muted">Type what you're considering · AI, ~10 s</span>
+            </span>
+          </button>
+          <div class="flex items-stretch gap-1">
+            <button
+              type="button"
+              class="flex min-h-16 min-w-0 flex-1 items-center gap-3.5 rounded-2xl px-3 py-2.5 text-left transition hover:bg-surface-2 active:bg-surface-2 disabled:opacity-50"
+              [disabled]="full()"
+              (click)="choosePhoto('food_photo', 'camera')"
+            >
+              <span
+                class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand/15 text-brand"
+              >
+                <app-icon name="camera" />
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="block font-semibold text-fg">Food photo</span>
+                <span class="block text-xs text-muted">Snap the plate · AI, ~10 s</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              class="flex w-14 shrink-0 items-center justify-center rounded-2xl text-muted transition hover:bg-surface-2 hover:text-fg active:bg-surface-2 disabled:opacity-50"
+              aria-label="Food photo from gallery"
+              [disabled]="full()"
+              (click)="choosePhoto('food_photo', 'gallery')"
+            >
+              <app-icon name="image" [size]="22" />
+            </button>
+          </div>
+          <div class="flex items-stretch gap-1">
+            <button
+              type="button"
+              class="flex min-h-16 min-w-0 flex-1 items-center gap-3.5 rounded-2xl px-3 py-2.5 text-left transition hover:bg-surface-2 active:bg-surface-2 disabled:opacity-50"
+              [disabled]="full()"
+              (click)="choosePhoto('nutrition_label', 'camera')"
+            >
+              <span
+                class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-carbs/15 text-carbs"
+              >
+                <app-icon name="label" />
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="block font-semibold text-fg">Nutrition label</span>
+                <span class="block text-xs text-muted">Snap the pack's label · AI, ~10 s</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              class="flex w-14 shrink-0 items-center justify-center rounded-2xl text-muted transition hover:bg-surface-2 hover:text-fg active:bg-surface-2 disabled:opacity-50"
+              aria-label="Nutrition label from gallery"
+              [disabled]="full()"
+              (click)="choosePhoto('nutrition_label', 'gallery')"
+            >
+              <app-icon name="image" [size]="22" />
+            </button>
+          </div>
+          <button
+            type="button"
+            class="flex min-h-16 w-full items-center gap-3.5 rounded-2xl px-3 py-2.5 text-left transition hover:bg-surface-2 active:bg-surface-2 disabled:opacity-50"
+            [disabled]="full()"
+            (click)="goTo('menu')"
+          >
+            <span
+              class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-protein/15 text-protein"
+            >
+              <app-icon name="utensils" />
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block font-semibold text-fg">Scan a menu</span>
+              <span class="block text-xs text-muted"
+                >Every dish estimated, pick the ones to compare</span
+              >
+            </span>
+          </button>
+        }
+      </div>
+    }
+
+    @case ('search') {
+      <div class="flex flex-col gap-3">
+        <label class="relative block">
+          <span class="sr-only">Search your foods</span>
+          <app-icon
+            class="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted"
+            name="search"
+            [size]="18"
+          />
+          <input
+            #searchInput
+            type="search"
+            class="input pl-10"
+            placeholder="Search your foods"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            enterkeyhint="search"
+            autofocus
+            [value]="search.text()"
+            (input)="onSearchInput($event)"
+          />
+        </label>
+
+        @if (search.error(); as message) {
+          <div class="flex flex-col items-start gap-2 rounded-2xl bg-danger/10 p-3" role="alert">
+            <p class="text-sm text-danger">{{ message }}</p>
+            <button type="button" class="btn btn-secondary" (click)="search.refresh()">
+              <app-icon name="refresh" [size]="18" />
+              Try again
+            </button>
+          </div>
+        } @else if (!search.loaded()) {
+          <div class="flex flex-col gap-3" aria-busy="true">
+            @for (row of [0, 1, 2, 3]; track row) {
+              <div class="flex items-center gap-3">
+                <app-skeleton class="size-11" />
+                <div class="flex flex-1 flex-col gap-1.5">
+                  <app-skeleton shape="text" class="w-3/5" />
+                  <app-skeleton shape="text" class="w-2/5" />
+                </div>
+              </div>
+            }
+            <span class="sr-only" role="status">Loading your foods</span>
+          </div>
+        } @else if (search.results().length === 0) {
+          <div class="flex flex-col items-center gap-3 px-4 py-6 text-center">
+            <p class="text-sm text-muted">
+              @if (search.shownQuery()) {
+                Nothing called “{{ search.shownQuery() }}” in your foods yet.
+              } @else {
+                Foods you log show up here.
+              }
+            </p>
+            <button type="button" class="btn btn-secondary" (click)="describeInstead()">
+              <app-icon name="text" [size]="18" />
+              {{
+                search.query() ? 'Describe “' + search.query() + '” instead' : 'Describe it instead'
+              }}
+            </button>
+          </div>
+        } @else {
+          <ul class="-mx-2 flex flex-col" aria-label="Your foods">
+            @for (result of search.results(); track result.key) {
+              <li>
+                <button
+                  type="button"
+                  class="flex min-h-16 w-full items-center gap-3 rounded-2xl px-2 py-2 text-left transition hover:bg-surface-2 active:bg-surface-2"
+                  [attr.aria-label]="'Compare ' + result.name + ', ' + summary(result)"
+                  (click)="addResult(result)"
+                >
+                  <app-food-thumb [result]="result" />
+                  <span class="min-w-0 flex-1">
+                    <span
+                      class="line-clamp-2 text-[15px] leading-5 font-semibold break-words text-fg"
+                    >
+                      {{ result.name }}
+                    </span>
+                    <span class="mt-0.5 block truncate text-xs text-muted">{{
+                      summary(result)
+                    }}</span>
+                  </span>
+                  <span
+                    class="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand/12 text-brand"
+                    aria-hidden="true"
+                  >
+                    <app-icon name="plus" [size]="18" [strokeWidth]="2.5" />
+                  </span>
+                </button>
+              </li>
+            }
+          </ul>
+          @if (search.busy()) {
+            <p class="sr-only" role="status">Searching</p>
+          }
+        }
+      </div>
+    }
+
+    @case ('describe') {
+      <form class="flex flex-col gap-3" novalidate (submit)="submitDescription($event)">
+        <label for="compare-describe" class="text-sm font-medium text-fg">
+          What are you thinking of eating?
+        </label>
+        <textarea
+          #describeInput
+          id="compare-describe"
+          class="input min-h-28 resize-none leading-snug"
+          rows="4"
+          autofocus
+          enterkeyhint="done"
+          [attr.maxlength]="descriptionMax"
+          [placeholder]="describePlaceholder"
+          [value]="describeText()"
+          (input)="onDescribeInput($event)"
+        ></textarea>
+        <app-voice-button (transcribed)="addTranscript($event)" />
+        <p class="text-xs leading-snug text-muted">
+          Sizes and amounts make the estimate better, e.g. "large", "2 slices", "300 g".
+        </p>
+        <button
+          type="submit"
+          class="btn btn-primary min-h-12 w-full text-base"
+          [disabled]="!canDescribe()"
+        >
+          <app-icon name="sparkles" [size]="18" />
+          Estimate with AI
+        </button>
+      </form>
+    }
+
+    @case ('menu') {
+      <div class="flex flex-col gap-3">
+        @switch (menu().status) {
+          @case ('scanning') {
+            <div class="flex flex-col items-center gap-3 px-4 py-6 text-center">
+              <app-spinner [size]="32" label="Reading the menu" />
+              <p class="text-base font-semibold text-fg" role="status">{{ menuStageText() }}</p>
+              <p class="text-sm text-muted tabular-nums" aria-hidden="true">
+                {{ menuSeconds() }} s · usually 15–30 s
+              </p>
+              <p class="text-xs text-muted">You can close this. The dishes wait for you here.</p>
+              <button
+                type="button"
+                class="btn btn-ghost text-muted"
+                (click)="store.cancelMenuScan()"
+              >
+                Cancel
+              </button>
+            </div>
+          }
+          @default {
+            @if (menu().photos.length === 0) {
+              <p class="text-sm leading-snug text-muted">
+                Snap the menu, one page per photo (up to {{ menuPhotosMax }}). The AI lists every
+                dish with a calorie and protein estimate, then you pick the ones to compare.
+              </p>
+              <button
+                type="button"
+                class="btn btn-primary min-h-12 w-full text-base"
+                (click)="takeMenuPhoto()"
+              >
+                <app-icon name="camera" [size]="18" />
+                Take a photo
+              </button>
+              <button type="button" class="btn btn-secondary w-full" (click)="chooseMenuPhotos()">
+                <app-icon name="image" [size]="18" />
+                Choose from gallery
+              </button>
+              @if (lastMenu(); as last) {
+                <button
+                  type="button"
+                  class="btn btn-ghost w-full text-brand"
+                  [disabled]="full()"
+                  (click)="goTo('dishes')"
+                >
+                  <app-icon name="utensils" [size]="18" />
+                  <span class="truncate"
+                    >Pick from your last menu · {{ last.dishes.length }}
+                    {{ last.dishes.length === 1 ? 'dish' : 'dishes' }}</span
+                  >
+                </button>
+              }
+            } @else {
+              <ul class="grid grid-cols-3 gap-2" aria-label="Menu photos">
+                @for (photo of menu().photos; track photo.id; let i = $index) {
+                  <li
+                    class="relative aspect-[3/4] overflow-hidden rounded-2xl border border-line/70"
+                  >
+                    <app-blob-image
+                      class="size-full"
+                      [blob]="photo.file"
+                      [alt]="'Menu page ' + (i + 1)"
+                    />
+                    <button
+                      type="button"
+                      class="absolute top-1 right-1 flex size-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur"
+                      [attr.aria-label]="'Remove menu page ' + (i + 1)"
+                      (click)="store.removeMenuPhoto(photo.id)"
+                    >
+                      <app-icon name="close" [size]="16" />
+                    </button>
+                  </li>
+                }
+                @if (menu().photos.length < menuPhotosMax) {
+                  <li class="flex aspect-[3/4] flex-col gap-1.5">
+                    <button
+                      type="button"
+                      class="flex flex-1 flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-field-line text-xs font-semibold text-muted transition active:bg-surface-2"
+                      (click)="takeMenuPhoto()"
+                    >
+                      <app-icon name="camera" [size]="20" />
+                      Add page
+                    </button>
+                    <button
+                      type="button"
+                      class="flex min-h-11 items-center justify-center gap-1 rounded-2xl border border-dashed border-field-line text-xs font-semibold text-muted transition active:bg-surface-2"
+                      aria-label="Add menu pages from gallery"
+                      (click)="chooseMenuPhotos()"
+                    >
+                      <app-icon name="image" [size]="16" />
+                      Gallery
+                    </button>
+                  </li>
+                }
+              </ul>
+              <label class="block">
+                <span class="label">Anything the AI should know? (optional)</span>
+                <input
+                  type="text"
+                  class="input"
+                  placeholder="e.g. big portions, dishes are shared"
+                  autocomplete="off"
+                  enterkeyhint="done"
+                  [attr.maxlength]="descriptionMax"
+                  [value]="menuNote()"
+                  (input)="onMenuNote($event)"
+                />
+              </label>
+              @if (menuFailure(); as problem) {
+                <div
+                  class="rounded-2xl border p-3"
+                  role="alert"
+                  [class]="
+                    problem.offline ? 'border-warn/30 bg-warn/10' : 'border-danger/30 bg-danger/10'
+                  "
+                >
+                  <p
+                    class="text-[15px] font-semibold"
+                    [class]="problem.offline ? 'text-warn' : 'text-danger'"
+                  >
+                    {{ problem.title }}
+                  </p>
+                  <p class="mt-1 text-sm leading-snug text-fg/85">{{ problem.message }}</p>
+                </div>
+              }
+              <button
+                type="button"
+                class="btn btn-primary min-h-12 w-full text-base"
+                (click)="findDishes()"
+              >
+                <app-icon name="sparkles" [size]="18" />
+                {{ menuFailure()?.retryable ? 'Try again' : 'Find dishes' }}
+              </button>
+            }
+          }
+        }
+        <input
+          #menuCamera
+          type="file"
+          accept="image/*"
+          capture="environment"
+          class="sr-only"
+          tabindex="-1"
+          aria-hidden="true"
+          (change)="onMenuFiles(menuCamera)"
+        />
+        <input
+          #menuGallery
+          type="file"
+          accept="image/*"
+          multiple
+          class="sr-only"
+          tabindex="-1"
+          aria-hidden="true"
+          (change)="onMenuFiles(menuGallery)"
+        />
+      </div>
+    }
+
+    @case ('dishes') {
+      @if (lastMenu(); as menu) {
+        <div class="flex flex-col gap-3">
+          <p class="text-sm text-muted">
+            <span class="font-semibold text-fg">{{ menu.restaurant ?? 'Your menu' }}</span>
+            · {{ pickHint() }}
+          </p>
+          @for (warning of menu.warnings; track warning) {
+            <p class="flex items-start gap-1.5 text-xs leading-snug text-warn">
+              <app-icon class="mt-px shrink-0" name="alert" [size]="13" />
+              {{ warning }}
+            </p>
+          }
+          <ul class="-mx-1 flex flex-col gap-1" aria-label="Dishes">
+            @for (row of dishRows(); track row.index) {
+              <li>
+                <button
+                  type="button"
+                  class="flex min-h-16 w-full items-center gap-3 rounded-2xl border px-3 py-2.5 text-left transition active:scale-[0.99] disabled:opacity-45"
+                  [class]="
+                    picked().has(row.index)
+                      ? 'border-brand bg-brand/10'
+                      : 'border-line/70 bg-surface-2/40'
+                  "
+                  [attr.aria-pressed]="picked().has(row.index)"
+                  [disabled]="!picked().has(row.index) && pickCount() >= pickLimit()"
+                  (click)="toggleDish(row.index)"
+                >
+                  <span
+                    class="flex size-6 shrink-0 items-center justify-center rounded-full border-2 transition"
+                    [class]="
+                      picked().has(row.index)
+                        ? 'border-brand bg-brand text-brand-fg'
+                        : 'border-field-line'
+                    "
+                    aria-hidden="true"
+                  >
+                    @if (picked().has(row.index)) {
+                      <app-icon name="check" [size]="14" [strokeWidth]="3" />
+                    }
+                  </span>
+                  <span class="min-w-0 flex-1">
+                    <span class="flex min-w-0 items-center gap-1.5">
+                      <span
+                        class="line-clamp-2 text-[15px] leading-5 font-semibold break-words text-fg"
+                      >
+                        {{ row.dish.name }}
+                      </span>
+                      @if (row.added) {
+                        <span class="chip shrink-0 px-2 py-0.5">Added</span>
+                      } @else if (row.top) {
+                        <span class="chip shrink-0 bg-brand/15 px-2 py-0.5 text-brand">{{
+                          bestFitLabel
+                        }}</span>
+                      }
+                    </span>
+                    @if (row.dish.description) {
+                      <span class="mt-0.5 block truncate text-xs text-muted">{{
+                        row.dish.description
+                      }}</span>
+                    }
+                    <span class="mt-0.5 block text-xs text-muted tabular-nums">
+                      @if (row.amount) {
+                        {{ row.amount }} ·
+                      }
+                      <span class="font-semibold" [class]="row.fit ? fitTones[row.fit] : 'text-fg'"
+                        >{{ row.kcal }} kcal</span
+                      >
+                      · {{ row.protein }} g protein
+                      @if (row.dish.confidence === 'low') {
+                        · rough estimate
+                      }
+                    </span>
+                  </span>
+                </button>
+              </li>
+            }
+          </ul>
+          <button
+            type="button"
+            class="btn btn-primary sticky bottom-0 min-h-12 w-full text-base shadow-lifted"
+            [disabled]="pickCount() === 0"
+            (click)="addPicked()"
+          >
+            {{
+              pickCount() === 0
+                ? 'Pick dishes to compare'
+                : 'Compare ' + pickCount() + (pickCount() === 1 ? ' dish' : ' dishes')
+            }}
+          </button>
+        </div>
+      } @else {
+        <p class="py-6 text-center text-sm text-muted">No menu yet. Scan one first.</p>
+      }
+    }
+  }
+</app-bottom-sheet>

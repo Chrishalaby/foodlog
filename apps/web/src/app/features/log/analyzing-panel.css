@@ -1,0 +1,46 @@
+.scan-band {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 45%;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--app-brand) 28%, transparent) 70%,
+    color-mix(in srgb, var(--app-brand) 70%, transparent) 98%,
+    transparent
+  );
+  animation: scan 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  pointer-events: none;
+}
+
+.scan-frame {
+  position: absolute;
+  inset: 0.75rem;
+  border-radius: 1rem;
+  border: 2px solid color-mix(in srgb, var(--app-brand) 55%, transparent);
+  animation: pulse-frame 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes scan {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(225%);
+  }
+}
+
+@keyframes pulse-frame {
+  50% {
+    opacity: 0.35;
+    transform: scale(0.985);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scan-band {
+    display: none;
+  }
+}

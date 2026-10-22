@@ -1,0 +1,203 @@
+<div class="relative min-h-dvh">
+  <div class="sticky top-0 z-30 h-safe-top bg-bg/85 backdrop-blur-xl"></div>
+
+  @if (demoNote(); as note) {
+    <p
+      class="mx-auto flex max-w-2xl items-center justify-center gap-1.5 px-4 pt-2 text-center text-xs font-medium text-accent"
+      data-demo-banner
+    >
+      <app-icon class="shrink-0" name="info" [size]="14" />
+      {{ note }}
+    </p>
+  }
+
+  <main id="main-content" class="mx-auto w-full max-w-2xl pb-nav">
+    <router-outlet />
+  </main>
+
+  @if (!online()) {
+    <div
+      class="pointer-events-none fixed inset-x-0 z-40 flex justify-center px-4"
+      [class]="keyboardOpen() ? 'bottom-3' : 'bottom-[calc(env(safe-area-inset-bottom)+5.75rem)]'"
+      role="status"
+      data-toast-clearance
+    >
+      <span
+        class="inline-flex animate-fade-in items-center gap-2 rounded-full border border-warn/30 bg-elevated/95 px-3.5 py-1.5 text-xs font-semibold text-warn shadow-lifted backdrop-blur-xl"
+      >
+        <app-icon name="wifi-off" [size]="14" />
+        You're offline
+      </span>
+    </div>
+  }
+
+  <input
+    #cameraInput
+    type="file"
+    accept="image/*"
+    capture="environment"
+    class="sr-only"
+    tabindex="-1"
+    aria-hidden="true"
+  />
+  <input
+    #libraryInput
+    type="file"
+    accept="image/*"
+    class="sr-only"
+    tabindex="-1"
+    aria-hidden="true"
+  />
+
+  <nav
+    class="fixed inset-x-0 bottom-0 z-40 border-t border-line/60 bg-surface/85 pb-safe backdrop-blur-xl [view-transition-name:app-nav]"
+    aria-label="Main"
+    [class.hidden]="keyboardOpen()"
+  >
+    <div class="mx-auto grid h-16 max-w-2xl grid-cols-5 items-stretch px-safe">
+      @for (tab of tabs; track tab.path; let i = $index) {
+        <a
+          class="group flex flex-col items-center justify-center gap-0.5 text-[11px] font-semibold text-muted transition-colors aria-[current=page]:text-fg"
+          [style.order]="i < 2 ? i : i + 1"
+          [routerLink]="tab.path"
+          routerLinkActive
+          ariaCurrentWhenActive="page"
+        >
+          <span
+            class="relative flex h-8 w-14 items-center justify-center rounded-full transition-colors group-aria-[current=page]:bg-brand/15 group-aria-[current=page]:text-brand"
+          >
+            <app-icon [name]="tab.icon" [size]="22" />
+            @if (tab.path === settingsPath && pendingAccess() > 0) {
+              <span
+                class="absolute top-0.5 right-2.5 size-2.5 rounded-full bg-warn ring-2 ring-surface"
+                data-testid="pending-access-dot"
+                aria-hidden="true"
+              ></span>
+            }
+          </span>
+          {{ tab.label }}
+          @if (tab.path === settingsPath && pendingAccess() > 0) {
+            <span class="sr-only">, {{ pendingAccessLabel() }}</span>
+          }
+        </a>
+      }
+
+      <div class="relative order-2 flex items-start justify-center">
+        <div class="relative -mt-6" data-toast-clearance>
+          <button
+            type="button"
+            class="flex size-[62px] items-center justify-center rounded-full bg-brand text-brand-fg shadow-lifted ring-[5px] ring-bg transition duration-150 select-none [-webkit-touch-callout:none] active:scale-95"
+            [attr.aria-label]="ai.enabled() ? 'Take a food photo' : 'Search foods to log'"
+            (pointerdown)="onFabPointerDown($event)"
+            (pointerup)="cancelPress()"
+            (pointerleave)="cancelPress()"
+            (pointercancel)="cancelPress()"
+            (contextmenu)="$event.preventDefault()"
+            (click)="onFabClick()"
+          >
+            <app-icon [name]="ai.enabled() ? 'camera' : 'search'" [size]="28" [strokeWidth]="2.1" />
+          </button>
+          <button
+            type="button"
+            class="absolute -top-1 -right-2 flex size-7 items-center justify-center rounded-full border border-line bg-elevated text-fg shadow-soft ring-2 ring-bg transition before:absolute before:-inset-2.5 before:content-[''] active:scale-90"
+            aria-label="More ways to log food"
+            aria-haspopup="dialog"
+            (click)="openActions()"
+          >
+            <app-icon name="plus" [size]="16" [strokeWidth]="2.5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <app-bottom-sheet [(open)]="actionsOpen" title="Log food" (closed)="onActionsClosed()">
+    <div class="flex flex-col gap-1.5">
+      <button type="button" class="action-row" (click)="searchFoods()">
+        <span class="action-icon bg-brand text-brand-fg"><app-icon name="search" /></span>
+        <span class="min-w-0 flex-1">
+          <span class="block font-semibold text-fg">Search my foods</span>
+          <span class="block text-xs text-muted"
+            >Log something you've had before, no AI needed</span
+          >
+        </span>
+      </button>
+      <button type="button" class="action-row" (click)="scanBarcode()">
+        <span class="action-icon bg-accent/15 text-accent"><app-icon name="barcode" /></span>
+        <span class="min-w-0 flex-1">
+          <span class="block font-semibold text-fg">Scan barcode</span>
+          <span class="block text-xs text-muted">Packaged food, logged in seconds</span>
+        </span>
+      </button>
+      <button type="button" class="action-row" (click)="compareOptions()">
+        <span class="action-icon bg-protein/15 text-protein"><app-icon name="utensils" /></span>
+        <span class="min-w-0 flex-1">
+          <span class="block font-semibold text-fg">Compare options</span>
+          <span class="block text-xs text-muted"
+            >Not sure what to eat? See which fits your day</span
+          >
+        </span>
+      </button>
+      @if (ai.enabled()) {
+        <button type="button" class="action-row" (click)="mealIdeas()">
+          <span class="action-icon bg-brand/15 text-brand"><app-icon name="sparkles" /></span>
+          <span class="min-w-0 flex-1">
+            <span class="block font-semibold text-fg">AI meal ideas</span>
+            <span class="block text-xs text-muted"
+              >What to eat next, from your usual foods and what's left</span
+            >
+          </span>
+        </button>
+        <button type="button" class="action-row" (click)="takeFoodPhoto()">
+          <span class="action-icon bg-brand/15 text-brand"><app-icon name="camera" /></span>
+          <span class="min-w-0 flex-1">
+            <span class="block font-semibold text-fg">Take food photo</span>
+            <span class="block text-xs text-muted">Snap your plate for an AI estimate</span>
+          </span>
+        </button>
+        <button type="button" class="action-row" (click)="chooseFromLibrary()">
+          <span class="action-icon bg-accent/15 text-accent"><app-icon name="image" /></span>
+          <span class="min-w-0 flex-1">
+            <span class="block font-semibold text-fg">Choose from library</span>
+            <span class="block text-xs text-muted">Use a photo you already took</span>
+          </span>
+        </button>
+        <button type="button" class="action-row" (click)="scanLabel()">
+          <span class="action-icon bg-carbs/15 text-carbs"><app-icon name="label" /></span>
+          <span class="min-w-0 flex-1">
+            <span class="block font-semibold text-fg">Scan nutrition label</span>
+            <span class="block text-xs text-muted">Read values straight from the package</span>
+          </span>
+        </button>
+        <button type="button" class="action-row" (click)="describeFood()">
+          <span class="action-icon bg-fat/15 text-fat"><app-icon name="text" /></span>
+          <span class="min-w-0 flex-1">
+            <span class="block font-semibold text-fg">Describe food</span>
+            <span class="block text-xs text-muted">Type what you ate</span>
+          </span>
+        </button>
+      }
+      <button type="button" class="action-row" (click)="openFoodDatabase()">
+        <span class="action-icon bg-accent/15 text-accent"><app-icon name="book" /></span>
+        <span class="min-w-0 flex-1">
+          <span class="block font-semibold text-fg">Food database</span>
+          <span class="block text-xs text-muted">Thousands of foods and dishes, no AI needed</span>
+        </span>
+      </button>
+      <button type="button" class="action-row" (click)="logWeight()">
+        <span class="action-icon bg-sodium/15 text-sodium"><app-icon name="scale" /></span>
+        <span class="min-w-0 flex-1">
+          <span class="block font-semibold text-fg">Log weight</span>
+          <span class="block text-xs text-muted">Add today's weigh-in</span>
+        </span>
+      </button>
+      <button type="button" class="action-row" (click)="openFavorites()">
+        <span class="action-icon bg-warn/15 text-warn"><app-icon name="star" /></span>
+        <span class="min-w-0 flex-1">
+          <span class="block font-semibold text-fg">Favorites</span>
+          <span class="block text-xs text-muted">Log a saved meal in one tap</span>
+        </span>
+      </button>
+    </div>
+  </app-bottom-sheet>
+</div>

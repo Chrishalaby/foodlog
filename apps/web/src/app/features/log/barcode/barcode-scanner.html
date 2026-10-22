@@ -1,0 +1,245 @@
+<dialog
+  #dialog
+  class="scanner"
+  aria-labelledby="scanner-title"
+  (cancel)="onCancel($event)"
+  (close)="onNativeClose()"
+>
+  <div class="relative flex h-full w-full flex-col overflow-hidden bg-black text-white">
+    <video
+      #video
+      class="absolute inset-0 size-full object-cover transition-opacity duration-300"
+      [class.opacity-0]="!previewing()"
+      playsinline
+      muted
+      autoplay
+      disablepictureinpicture
+      aria-hidden="true"
+    ></video>
+
+    <header
+      class="relative z-20 flex items-center justify-between gap-2 bg-linear-to-b from-black/60 to-transparent pt-[max(0.5rem,env(safe-area-inset-top))] pr-[max(0.75rem,env(safe-area-inset-right))] pb-6 pl-[max(0.75rem,env(safe-area-inset-left))]"
+    >
+      <button
+        type="button"
+        class="flex size-11 shrink-0 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-md transition active:scale-95"
+        aria-label="Close scanner"
+        (click)="close()"
+      >
+        <app-icon name="close" [size]="24" />
+      </button>
+      <h2 id="scanner-title" class="text-[17px] font-semibold tracking-tight">Scan barcode</h2>
+      @if (torchAvailable()) {
+        <button
+          type="button"
+          class="flex size-11 shrink-0 items-center justify-center rounded-full backdrop-blur-md transition active:scale-95"
+          [class]="torchOn() ? 'bg-white text-black' : 'bg-black/45 text-white'"
+          [attr.aria-pressed]="torchOn()"
+          aria-label="Flashlight"
+          (click)="toggleTorch()"
+        >
+          <app-icon name="flashlight" [size]="22" />
+        </button>
+      } @else {
+        <span class="size-11" aria-hidden="true"></span>
+      }
+    </header>
+
+    <div class="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center px-6">
+      @if (showFrame()) {
+        <div class="scan-frame" [class.scan-frame-steady]="steady()" aria-hidden="true">
+          <span class="scan-corner scan-corner-tl"></span>
+          <span class="scan-corner scan-corner-tr"></span>
+          <span class="scan-corner scan-corner-bl"></span>
+          <span class="scan-corner scan-corner-br"></span>
+          @if (status() === 'live') {
+            <span class="scan-line"></span>
+          }
+        </div>
+        <p
+          class="mt-5 rounded-full bg-black/55 px-3.5 py-1.5 text-center text-sm font-medium backdrop-blur-md"
+          role="status"
+          aria-live="polite"
+        >
+          {{ hint() }}
+        </p>
+        @if (zoomAvailable()) {
+          <div
+            class="mt-3 flex gap-1 rounded-full bg-black/55 p-1 backdrop-blur-md"
+            role="group"
+            aria-label="Camera zoom"
+          >
+            <button
+              type="button"
+              class="flex h-9 min-w-11 items-center justify-center rounded-full px-3 text-[13px] font-semibold tabular-nums transition active:scale-95"
+              [class]="zoomedIn() ? 'text-white' : 'bg-white text-black'"
+              [attr.aria-pressed]="!zoomedIn()"
+              (click)="setZoomedIn(false)"
+            >
+              1×
+            </button>
+            <button
+              type="button"
+              class="flex h-9 min-w-11 items-center justify-center rounded-full px-3 text-[13px] font-semibold tabular-nums transition active:scale-95"
+              [class]="zoomedIn() ? 'bg-white text-black' : 'text-white'"
+              [attr.aria-pressed]="zoomedIn()"
+              (click)="setZoomedIn(true)"
+            >
+              {{ scanZoom }}×
+            </button>
+          </div>
+        }
+      } @else if (problem(); as current) {
+        <div
+          class="w-full max-w-sm animate-pop-in rounded-3xl border border-white/10 bg-white/10 p-5 text-center backdrop-blur-xl"
+          role="alert"
+        >
+          <span
+            class="mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl bg-white/15"
+          >
+            <app-icon [name]="readerFailed() ? 'barcode' : 'camera'" [size]="24" />
+          </span>
+          <p class="text-lg leading-6 font-semibold">{{ current.title }}</p>
+          <p class="mt-1.5 text-sm leading-snug text-white/75">{{ current.message }}</p>
+          @if (current.retry) {
+            <button type="button" class="btn mt-4 bg-white px-5 text-black" (click)="retry()">
+              <app-icon name="refresh" [size]="18" />
+              Try again
+            </button>
+          }
+        </div>
+      } @else if (status() === 'decoding') {
+        <div class="flex flex-col items-center gap-3 text-center" role="status">
+          <app-spinner [size]="32" label="Reading the photo" />
+          <p class="text-sm font-medium text-white/85">Looking for a code in your photo…</p>
+        </div>
+      } @else if (status() === 'paused') {
+        <div class="flex flex-col items-center gap-3 text-center">
+          <app-icon class="text-white/60" name="camera" [size]="32" />
+          <p class="text-sm font-medium text-white/75">Camera paused</p>
+          <button type="button" class="btn bg-white/15 px-5 text-white" (click)="retry()">
+            Resume camera
+          </button>
+        </div>
+      }
+    </div>
+
+    <footer
+      class="relative z-20 flex flex-col gap-2.5 bg-linear-to-t from-black/75 via-black/50 to-transparent pt-8 pr-[max(1rem,env(safe-area-inset-right))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))]"
+    >
+      @if (photoMessage(); as message) {
+        <p
+          class="flex animate-fade-in items-start gap-2 rounded-2xl bg-white/12 px-3.5 py-2.5 text-sm leading-snug backdrop-blur-md"
+          role="alert"
+        >
+          <app-icon class="mt-0.5 text-warn" name="alert" [size]="16" />
+          {{ message }}
+        </p>
+      }
+      @if (manualOpen()) {
+        <form
+          class="flex animate-pop-in flex-col gap-2.5 rounded-3xl border border-white/10 bg-neutral-900/90 p-3.5 backdrop-blur-xl"
+          novalidate
+          (submit)="submitManual($event)"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <label for="barcode-number" class="text-[15px] font-semibold">Barcode number</label>
+            <button
+              type="button"
+              class="-my-2 -mr-2 flex size-11 items-center justify-center rounded-full text-white/70 hover:bg-white/10"
+              aria-label="Back to the camera"
+              (click)="closeManual()"
+            >
+              <app-icon name="close" [size]="20" />
+            </button>
+          </div>
+          <input
+            #manualInput
+            id="barcode-number"
+            type="text"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            autocomplete="off"
+            autocorrect="off"
+            spellcheck="false"
+            enterkeyhint="search"
+            placeholder="e.g. 5281234567890"
+            class="h-14 w-full rounded-2xl border border-white/15 bg-white/10 px-4 text-center text-2xl font-bold tracking-[0.08em] text-white tabular-nums outline-none placeholder:text-base placeholder:font-medium placeholder:tracking-normal placeholder:text-white/40 focus:border-brand focus:ring-4 focus:ring-brand/30 aria-invalid:border-danger"
+            [attr.maxlength]="inputMax"
+            [attr.aria-invalid]="manualProblem() ? true : null"
+            [attr.aria-describedby]="
+              manualProblem() ? 'barcode-number-error' : 'barcode-number-help'
+            "
+            [value]="manualText()"
+            (input)="onManualInput($event)"
+          />
+          @if (manualProblem(); as message) {
+            <p id="barcode-number-error" class="text-sm leading-snug text-danger" role="alert">
+              {{ message }}
+            </p>
+          } @else {
+            <p id="barcode-number-help" class="text-xs leading-snug text-white/60">
+              The digits printed under the bars, usually 13.
+            </p>
+          }
+          <button type="submit" class="btn btn-primary min-h-12 w-full text-base">
+            <app-icon name="search" [size]="18" />
+            Look it up
+          </button>
+        </form>
+      } @else {
+        <div class="grid gap-2" [class.grid-cols-3]="canUsePhoto()">
+          <button
+            type="button"
+            class="flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-2xl bg-white/14 px-1.5 py-2 text-[13px] leading-4 font-semibold text-white backdrop-blur-xl transition active:scale-[0.98] active:bg-white/20"
+            (click)="openManual()"
+          >
+            <app-icon name="keyboard" [size]="20" />
+            Type number
+          </button>
+          @if (canUsePhoto()) {
+            <button
+              type="button"
+              class="flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-2xl bg-white/14 px-1.5 py-2 text-[13px] leading-4 font-semibold text-white backdrop-blur-xl transition active:scale-[0.98] active:bg-white/20"
+              (click)="takePhoto()"
+            >
+              <app-icon name="camera" [size]="20" />
+              Take photo
+            </button>
+            <button
+              type="button"
+              class="flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-2xl bg-white/14 px-1.5 py-2 text-[13px] leading-4 font-semibold text-white backdrop-blur-xl transition active:scale-[0.98] active:bg-white/20"
+              aria-label="Choose from gallery"
+              (click)="chooseFromGallery()"
+            >
+              <app-icon name="image" [size]="20" />
+              Gallery
+            </button>
+          }
+        </div>
+      }
+    </footer>
+
+    <input
+      #photoInput
+      type="file"
+      accept="image/*"
+      capture="environment"
+      class="sr-only"
+      tabindex="-1"
+      aria-hidden="true"
+      (change)="onImage(photoInput)"
+      (cancel)="onPhotoCancel()"
+    />
+    <input
+      #galleryInput
+      type="file"
+      accept="image/*"
+      class="sr-only"
+      tabindex="-1"
+      aria-hidden="true"
+      (change)="onImage(galleryInput)"
+      (cancel)="onPhotoCancel()"
+    />
+  </div>
+</dialog>

@@ -1,0 +1,140 @@
+<app-page-header title="Food database" [subtitle]="subtitle()" backLink="/log" backLabel="Back to Log" />
+
+<div class="sticky top-safe z-20 bg-bg/85 px-4 pt-1 pb-2 backdrop-blur-xl">
+  <form class="relative" role="search" (submit)="onSubmit($event)">
+    <label for="catalog-search" class="sr-only">Search the food database</label>
+    <span
+      class="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-muted"
+      aria-hidden="true"
+    >
+      @if (status() === 'loading' && text()) {
+        <app-spinner [size]="20" label="Searching" />
+      } @else {
+        <app-icon name="search" [size]="20" />
+      }
+    </span>
+    <input
+      id="catalog-search"
+      type="search"
+      class="input h-12 rounded-2xl pr-12 pl-11 [&::-webkit-search-cancel-button]:appearance-none"
+      placeholder="Search foods and dishes…"
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="none"
+      spellcheck="false"
+      enterkeyhint="search"
+      aria-controls="catalog-results"
+      [attr.maxlength]="queryMax"
+      [value]="text()"
+      (input)="onInput($event)"
+    />
+    @if (text()) {
+      <button
+        type="button"
+        class="btn btn-ghost btn-icon absolute top-0.5 right-0.5 text-muted"
+        aria-label="Clear search"
+        (click)="clear()"
+      >
+        <app-icon name="close" [size]="18" />
+      </button>
+    }
+  </form>
+
+  @if (chips().length > 0) {
+    <div
+      class="-mx-4 mt-2 flex gap-1.5 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none]"
+      role="group"
+      aria-label="Food groups"
+    >
+      @for (chip of chips(); track chip.label) {
+        <button
+          type="button"
+          class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-semibold transition active:scale-95"
+          [class]="
+            group() === chip.group
+              ? 'border-brand bg-brand/15 text-brand'
+              : 'border-line/70 bg-surface text-fg hover:bg-surface-2'
+          "
+          [attr.aria-pressed]="group() === chip.group"
+          (click)="pickGroup(chip.group)"
+        >
+          {{ chip.label }}
+          <span class="text-xs font-medium tabular-nums opacity-60">{{ chip.count }}</span>
+        </button>
+      }
+    </div>
+  }
+</div>
+
+<div id="catalog-results" class="flex flex-col gap-3 px-4 pt-2 pb-8">
+  @if (unavailable()) {
+    <app-empty-state
+      icon="book"
+      title="The food database is not loaded yet"
+      text="It loads automatically when the server starts. Check the server log if this stays empty."
+    />
+  } @else if (status() === 'error') {
+    <div class="card flex items-center gap-3 p-3.5 text-sm" role="alert">
+      <app-icon class="text-warn" name="alert" />
+      <span class="flex-1 text-muted">{{ error() }}</span>
+      <button type="button" class="btn btn-ghost px-3 text-brand" (click)="retry()">Retry</button>
+    </div>
+  } @else if (status() === 'loading' && results().length === 0) {
+    <div class="card flex flex-col divide-y divide-line/60 overflow-hidden" aria-hidden="true">
+      @for (i of skeletons; track i) {
+        <div class="flex items-center gap-3 px-3.5 py-3">
+          <app-skeleton class="size-11 shrink-0" />
+          <div class="flex flex-1 flex-col gap-2">
+            <app-skeleton class="w-2/3" shape="text" />
+            <app-skeleton class="w-1/3" shape="text" />
+          </div>
+        </div>
+      }
+    </div>
+  } @else if (empty()) {
+    <app-empty-state
+      icon="search"
+      title="No foods match"
+      text="Try fewer words, a different spelling, or another group. You can always describe it to the AI or add it manually from Log."
+    />
+  } @else {
+    <p class="px-1 text-xs font-medium text-muted" role="status" aria-live="polite">
+      {{ resultsLabel() }}
+    </p>
+    <div
+      class="card divide-y divide-line/60 overflow-hidden transition-opacity duration-150"
+      role="list"
+      [class.opacity-60]="status() === 'loading'"
+    >
+      @for (food of results(); track food.id) {
+        <app-catalog-result-row [food]="food" [query]="shownQuery()" (opened)="open($event)" />
+      }
+    </div>
+    @if (error() && status() === 'ready') {
+      <p class="text-center text-xs text-danger" role="alert">{{ error() }}</p>
+    }
+    @if (hasMore()) {
+      <button
+        type="button"
+        class="btn btn-secondary min-h-12 w-full"
+        [disabled]="loadingMore()"
+        (click)="loadMore()"
+      >
+        @if (loadingMore()) {
+          <app-spinner [size]="18" label="Loading" />
+        }
+        Show more
+      </button>
+    }
+    <p class="px-1 pt-2 text-center text-[11px] leading-snug text-muted">
+      Values per 100 g from USDA FoodData Central (public domain). Portions are USDA household
+      measures.
+    </p>
+  }
+</div>
+
+<app-catalog-food-sheet
+  [selection]="selection()"
+  [(open)]="sheetOpen"
+  (edit)="editFirst($event)"
+/>

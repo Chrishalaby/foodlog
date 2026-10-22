@@ -1,0 +1,162 @@
+<app-page-header title="Favorites" [subtitle]="subtitle()">
+  <button
+    type="button"
+    class="btn btn-ghost btn-icon"
+    aria-label="New favorite"
+    aria-haspopup="dialog"
+    (click)="openEditor(null)"
+  >
+    <app-icon name="plus" [size]="24" />
+  </button>
+</app-page-header>
+
+@if (status() === 'ready' && favorites().length > 0) {
+  <div class="flex flex-col gap-2.5 px-4 pb-3">
+    <div class="relative" role="search">
+      <label class="sr-only" for="favorites-search">Search starred meals</label>
+      <span class="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-muted">
+        <app-icon name="search" [size]="18" />
+      </span>
+      <input
+        id="favorites-search"
+        type="search"
+        class="input pr-12 pl-10 [&::-webkit-search-cancel-button]:appearance-none"
+        placeholder="Search starred meals"
+        autocomplete="off"
+        enterkeyhint="search"
+        [value]="search()"
+        (input)="onSearchInput($event)"
+        (keydown.escape)="clearSearch()"
+      />
+      @if (search()) {
+        <button
+          type="button"
+          class="btn btn-ghost btn-icon absolute inset-y-0 right-0 my-auto text-muted"
+          aria-label="Clear search"
+          (click)="clearSearch()"
+        >
+          <app-icon name="close" [size]="18" />
+        </button>
+      }
+    </div>
+    @if (favorites().length > 1) {
+      <app-segmented-control [options]="sortOptions" [(value)]="sort" ariaLabel="Sort favorites" />
+    }
+  </div>
+}
+
+<div class="px-4">
+  @switch (status()) {
+    @case ('loading') {
+      <div class="flex flex-col gap-3" aria-busy="true" aria-label="Loading favorites">
+        @for (row of skeletonRows; track row) {
+          <app-skeleton class="h-[138px] rounded-card" />
+        }
+      </div>
+    }
+    @case ('error') {
+      <app-empty-state icon="alert" title="Favorites didn't load" [text]="loadError() ?? ''">
+        <button type="button" class="btn btn-primary" (click)="load()">
+          <app-icon name="refresh" [size]="18" />
+          Try again
+        </button>
+      </app-empty-state>
+    }
+    @default {
+      @if (favorites().length === 0) {
+        <app-empty-state
+          icon="star"
+          title="No starred meals yet"
+          text="Star the meals you eat often to pin them here and at the front of Quick add on Today. Everything you log is also searchable from the Log screen, so you can log it again in one tap with no AI cost."
+        >
+          <a class="btn btn-primary" routerLink="/log" [queryParams]="searchQuery">
+            <app-icon name="search" [size]="18" />
+            Search your foods
+          </a>
+          <button type="button" class="btn btn-secondary" (click)="openEditor(null)">
+            <app-icon name="edit" [size]="18" />
+            Create manually
+          </button>
+        </app-empty-state>
+      } @else if (visible().length === 0) {
+        <app-empty-state
+          icon="search"
+          title="No matches"
+          [text]="'No starred meals match “' + search().trim() + '”.'"
+        >
+          <a class="btn btn-primary" routerLink="/log" [queryParams]="{ q: search().trim() }">
+            <app-icon name="search" [size]="18" />
+            Search all foods
+          </a>
+          <button type="button" class="btn btn-secondary" (click)="clearSearch()">
+            Clear search
+          </button>
+        </app-empty-state>
+      } @else {
+        <ul class="grid grid-cols-1 gap-3 sm:grid-cols-2" role="list">
+          @for (favorite of visible(); track favorite.id) {
+            <li class="min-w-0">
+              <app-favorite-card
+                [favorite]="favorite"
+                [busy]="isBusy(favorite)"
+                [recent]="recentFor(favorite)"
+                (log)="quickLog($event)"
+                (customize)="openLogSheet($event)"
+                (more)="openMenu($event)"
+              />
+            </li>
+          }
+        </ul>
+        <div class="mt-5 flex flex-col items-center gap-1 px-4 text-center">
+          <p class="text-xs leading-relaxed text-muted">
+            Logging a starred meal reuses its saved nutrients — instant, and no AI cost. Everything
+            you have ever logged is searchable from the Log screen too.
+          </p>
+          <a
+            class="btn btn-ghost min-h-11 gap-1.5 px-3 text-sm text-brand"
+            routerLink="/log"
+            [queryParams]="searchQuery"
+          >
+            <app-icon name="search" [size]="16" />
+            Search your food library
+          </a>
+        </div>
+      }
+    }
+  }
+</div>
+
+<app-log-favorite-sheet
+  [favorite]="logTarget()"
+  [busy]="logTargetBusy()"
+  [(open)]="logSheetOpen"
+  (submitted)="logWithOptions($event)"
+/>
+
+<app-favorite-editor-sheet
+  [favorite]="editTarget()"
+  [(open)]="editorOpen"
+  (saved)="onSaved($event)"
+  (deleteRequested)="deleteFavorite($event)"
+/>
+
+<app-bottom-sheet [(open)]="menuOpen" [title]="menuTarget()?.name ?? 'Favorite'">
+  <div class="flex flex-col gap-1">
+    <button type="button" class="btn btn-ghost h-13 justify-start gap-3 px-3" (click)="menuLog()">
+      <app-icon name="clock" class="text-muted" />
+      Log with options…
+    </button>
+    <button type="button" class="btn btn-ghost h-13 justify-start gap-3 px-3" (click)="menuEdit()">
+      <app-icon name="edit" class="text-muted" />
+      Edit favorite
+    </button>
+    <button
+      type="button"
+      class="btn btn-ghost h-13 justify-start gap-3 px-3 text-danger"
+      (click)="menuDelete()"
+    >
+      <app-icon name="trash" />
+      Delete favorite
+    </button>
+  </div>
+</app-bottom-sheet>

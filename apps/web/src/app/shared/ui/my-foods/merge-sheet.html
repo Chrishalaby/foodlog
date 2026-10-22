@@ -1,0 +1,113 @@
+<app-bottom-sheet [(open)]="open" title="Make it one food">
+  @if (suggestion(); as current) {
+    @if (draft(); as state) {
+      <form class="flex flex-col gap-4" novalidate (submit)="merge($event)">
+        <p class="text-sm leading-snug text-muted">
+          Tick the names that are the same food and pick the values to keep.
+        </p>
+
+        <fieldset class="min-w-0">
+          <legend class="section-title mb-2">Logged as</legend>
+          <ul class="flex flex-col gap-2" aria-label="Names to merge">
+            @for (variant of current.variants; track $index) {
+              <li>
+                <label
+                  class="flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl border border-line/70 bg-surface-2/60 px-3 py-2 transition has-checked:border-brand/50 has-focus-visible:ring-2 has-focus-visible:ring-brand"
+                >
+                  <input
+                    type="checkbox"
+                    class="size-5 shrink-0 accent-brand"
+                    [checked]="included($index)"
+                    (change)="toggle($index, $event)"
+                  />
+                  <span class="min-w-0 flex-1">
+                    <span
+                      class="line-clamp-2 block text-[15px] leading-5 font-semibold break-words text-fg"
+                    >
+                      {{ variant.name }}
+                    </span>
+                    <span class="block text-xs text-muted tabular-nums">
+                      {{ range(variant) }} · {{ timesText(variant) }}
+                    </span>
+                  </span>
+                  <span class="chip shrink-0 font-semibold" [class]="sourceClass(variant)">
+                    {{ sourceLabel(variant) }}
+                  </span>
+                </label>
+              </li>
+            }
+          </ul>
+        </fieldset>
+
+        @if (choices().length > 0) {
+          <fieldset class="min-w-0">
+            <legend class="section-title mb-2">Use these values</legend>
+            <div class="flex flex-col gap-1">
+              @for (variant of choices(); track $index) {
+                <label
+                  class="flex min-h-13 cursor-pointer items-center gap-3 rounded-xl px-3 py-2 transition hover:bg-surface-2 has-checked:bg-brand/10 has-focus-visible:ring-2 has-focus-visible:ring-brand"
+                >
+                  <input
+                    type="radio"
+                    class="size-5 shrink-0 accent-brand"
+                    [name]="ids.radios"
+                    [checked]="chosen() === variant"
+                    (change)="chooseValues(variant)"
+                  />
+                  <span class="min-w-0 flex-1">
+                    <span class="block text-sm font-semibold text-fg tabular-nums">
+                      {{ valuesText(variant) }}
+                    </span>
+                    <span class="block text-xs break-words text-muted">
+                      per 100 {{ variant.basisUnit }} from {{ variant.name }}
+                      @if (variant.recommended) {
+                        <span class="font-semibold text-brand">· Recommended</span>
+                      }
+                    </span>
+                  </span>
+                </label>
+              }
+            </div>
+          </fieldset>
+        }
+
+        <div>
+          <label class="label" [for]="ids.name">Name</label>
+          <input
+            type="text"
+            class="input font-semibold"
+            autocomplete="off"
+            autocapitalize="sentences"
+            enterkeyhint="done"
+            [id]="ids.name"
+            [attr.maxlength]="nameMax"
+            [attr.aria-invalid]="
+              submitted() && (!state.name.trim() || nameKeptApart()) ? true : null
+            "
+            [value]="state.name"
+            (input)="onName($event)"
+          />
+        </div>
+
+        <app-toggle-row
+          [title]="'Also fix ' + pastItemsLabel()"
+          detail="Renames them and uses these values"
+          [checked]="state.applyToPast"
+          (checkedChange)="setApply($event)"
+        />
+
+        @if (message(); as text) {
+          <p class="text-sm text-danger" role="alert">{{ text }}</p>
+        }
+        <button type="submit" class="btn btn-primary min-h-12 w-full" [disabled]="saving()">
+          @if (saving()) {
+            <app-spinner [size]="18" label="Merging" />
+          } @else {
+            <app-icon name="check" [size]="18" [strokeWidth]="2.5" />
+          }
+          Make it one food
+        </button>
+      </form>
+    }
+  }
+</app-bottom-sheet>

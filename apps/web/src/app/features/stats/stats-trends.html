@@ -1,0 +1,124 @@
+<app-segmented-control
+  ariaLabel="Time range"
+  [options]="rangeOptions"
+  [value]="range()"
+  (valueChange)="selectRange($event)"
+/>
+
+<div
+  class="no-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1"
+  role="group"
+  aria-label="Nutrient"
+>
+  @for (chip of chips; track chip.key) {
+    <button
+      type="button"
+      class="inline-flex h-11 shrink-0 items-center gap-2 rounded-full border px-3.5 text-sm font-semibold transition active:scale-[0.97]"
+      [class.border-line]="nutrient() !== chip.key"
+      [class.bg-surface]="nutrient() !== chip.key"
+      [class.text-muted]="nutrient() !== chip.key"
+      [style.border-color]="nutrient() === chip.key ? chip.ring : null"
+      [style.background-color]="nutrient() === chip.key ? chip.tint : null"
+      [style.color]="nutrient() === chip.key ? chip.color : null"
+      [attr.aria-pressed]="nutrient() === chip.key"
+      (click)="selectNutrient(chip.key)"
+    >
+      <span class="size-2 rounded-full" [style.background-color]="chip.color"></span>
+      {{ chip.label }}
+    </button>
+  }
+</div>
+
+@if (failed()) {
+  <app-stats-error class="mt-3" [message]="errorText()" (retry)="retry()" />
+} @else if (summary(); as summary) {
+  <div
+    class="mt-3 space-y-4 transition-opacity duration-200"
+    [class.opacity-60]="loading()"
+    [attr.aria-busy]="loading()"
+  >
+    @if (summary.empty) {
+      <div class="card">
+        <app-empty-state
+          icon="chart"
+          [title]="'No meals logged in the last ' + summary.days + ' days'"
+          text="Log meals for a few days to see how your nutrition trends over time."
+        />
+      </div>
+    } @else {
+      <section class="card p-4" aria-labelledby="trend-title">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <h2 id="trend-title" class="truncate text-base font-semibold text-fg">
+              {{ summary.label }}
+            </h2>
+            <p class="text-xs text-muted">{{ summary.logged }}</p>
+          </div>
+          <div class="shrink-0 text-right">
+            <p class="text-lg leading-6 font-bold text-fg tabular-nums">
+              {{ summary.average
+              }}<span class="ml-1 text-xs font-medium text-muted">{{ summary.unit }}/day</span>
+            </p>
+            <p class="text-xs text-muted tabular-nums">
+              {{ summary.targetLabel }} {{ summary.target }} {{ summary.unit }}
+            </p>
+          </div>
+        </div>
+        @if (trendOption(); as option) {
+          <div
+            echarts
+            class="mt-3 h-60 w-full"
+            role="img"
+            [attr.aria-label]="trendAriaLabel()"
+            [options]="option"
+            [theme]="theme()"
+          ></div>
+        }
+        <ul
+          class="mt-2 flex flex-wrap items-center gap-x-3.5 gap-y-1.5 text-[11px] font-medium text-muted"
+          aria-label="Chart legend"
+        >
+          <li class="flex items-center gap-1.5">
+            <span class="size-2 rounded-full" [style.background-color]="legendColor()"></span>
+            Daily
+          </li>
+          <li class="flex items-center gap-1.5">
+            <span class="h-[3px] w-4 rounded-full" [style.background-color]="legendColor()"></span>
+            7-day average
+          </li>
+          <li class="flex items-center gap-1.5">
+            <span class="w-4 border-t-2 border-dashed" [class]="targetLegendClass()"></span>
+            {{ legendTargetLabel() }}
+          </li>
+        </ul>
+      </section>
+
+      <section class="card p-4" aria-labelledby="weekday-title">
+        <h2 id="weekday-title" class="text-base font-semibold text-fg">{{ weekdayTitle() }}</h2>
+        <p class="text-xs text-muted">{{ weekdayNote() }}</p>
+        @if (weekdayOption(); as option) {
+          <div
+            echarts
+            class="mt-3 h-44 w-full"
+            role="img"
+            [attr.aria-label]="weekdayTitle()"
+            [options]="option"
+            [theme]="theme()"
+          ></div>
+        }
+      </section>
+    }
+  </div>
+} @else {
+  <div class="mt-3 space-y-4" role="status" aria-label="Loading trends">
+    <div class="card p-4">
+      <app-skeleton shape="text" class="w-24" />
+      <app-skeleton shape="text" class="mt-2 w-40" />
+      <app-skeleton class="mt-4 h-56 w-full" />
+    </div>
+    <div class="card p-4">
+      <app-skeleton shape="text" class="w-48" />
+      <app-skeleton class="mt-4 h-40 w-full" />
+    </div>
+  </div>
+}

@@ -1,0 +1,187 @@
+<p class="sr-only" aria-live="polite">{{ announcement() }}</p>
+<div>
+  @switch (view()) {
+    @case ('checking') {
+      <div class="flex items-center gap-3" role="status">
+        <span
+          class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-surface-2 text-muted"
+        >
+          <app-spinner [size]="20" label="Checking your request" />
+        </span>
+        <div class="min-w-0">
+          <p class="font-semibold text-fg">Checking your request…</p>
+          <p class="truncate text-sm text-muted">{{ email() }}</p>
+        </div>
+      </div>
+    }
+    @case ('error') {
+      <div class="flex items-start gap-3">
+        <span
+          class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-danger/12 text-danger"
+          aria-hidden="true"
+        >
+          <app-icon name="wifi-off" [size]="20" />
+        </span>
+        <div class="min-w-0 flex-1">
+          <p class="font-semibold text-fg">Couldn’t check your request</p>
+          <p class="mt-0.5 text-sm leading-snug text-muted">{{ store.error() }}</p>
+        </div>
+      </div>
+      <div class="mt-4 grid grid-cols-2 gap-2">
+        <button type="button" class="btn btn-ghost text-muted" (click)="dismiss()">
+          Forget it
+        </button>
+        <button
+          type="button"
+          class="btn btn-secondary"
+          [disabled]="store.checking()"
+          (click)="checkNow()"
+        >
+          @if (store.checking()) {
+            <app-spinner [size]="18" label="Checking" />
+          } @else {
+            <app-icon name="refresh" [size]="18" />
+          }
+          Try again
+        </button>
+      </div>
+    }
+    @case ('pending') {
+      <div class="flex items-start gap-3">
+        <span
+          class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-warn/15 text-warn"
+          aria-hidden="true"
+        >
+          <app-icon name="clock" [size]="22" />
+        </span>
+        <div class="min-w-0 flex-1">
+          <p class="text-xs font-semibold tracking-wide text-warn uppercase">
+            Waiting for approval
+          </p>
+          <h2 class="mt-0.5 font-semibold text-fg">
+            @if (name()) {
+              Thanks, {{ name() }}!
+            } @else {
+              Your request is in
+            }
+          </h2>
+          <p class="mt-1 text-sm leading-relaxed text-muted">
+            The owner will review access for
+            <span class="font-medium break-words text-fg">{{ email() }}</span
+            >. Come back to FoodLog on this device — once you’re approved you’ll set your password
+            right here.
+          </p>
+        </div>
+      </div>
+      <button
+        type="button"
+        class="btn btn-secondary mt-4 min-h-12 w-full"
+        [disabled]="store.checking()"
+        (click)="checkNow()"
+      >
+        @if (store.checking()) {
+          <app-spinner [size]="18" label="Checking" />
+        } @else {
+          <app-icon name="refresh" [size]="18" />
+        }
+        Check status
+      </button>
+      <div class="mt-2 flex items-center justify-between gap-2 text-xs text-muted">
+        <span>{{ checkedLabel() }}</span>
+        <button
+          type="button"
+          class="-mr-2 min-h-11 rounded-lg px-2 font-medium text-muted underline-offset-2 hover:text-fg hover:underline"
+          (click)="dismiss()"
+        >
+          Forget on this device
+        </button>
+      </div>
+    }
+    @case ('approved') {
+      <div class="flex items-start gap-3">
+        <span
+          class="flex size-11 shrink-0 animate-pop-in items-center justify-center rounded-2xl bg-brand text-brand-fg shadow-soft"
+          aria-hidden="true"
+        >
+          <app-icon name="check" [size]="24" [strokeWidth]="2.5" />
+        </span>
+        <div class="min-w-0 flex-1">
+          <h2 class="text-lg leading-6 font-bold text-fg">You’re in! Create your password</h2>
+          <p class="mt-1 text-sm leading-snug text-muted">
+            Your access for <span class="font-medium break-words text-fg">{{ email() }}</span> was
+            approved.
+          </p>
+        </div>
+      </div>
+      <form
+        class="mt-4 flex flex-col gap-4"
+        aria-label="Create your password"
+        [formRoot]="passwordForm"
+      >
+        <input type="email" name="username" autocomplete="username" hidden [value]="email()" />
+        @if (acceptError(); as message) {
+          <app-form-alert [message]="message" />
+        }
+        <app-new-password-fields
+          idPrefix="access"
+          label="New password"
+          [password]="passwordForm.password"
+          [confirm]="passwordForm.confirmPassword"
+        />
+        <button
+          type="submit"
+          class="btn btn-primary min-h-12 w-full text-base"
+          [disabled]="passwordForm().submitting()"
+        >
+          @if (passwordForm().submitting()) {
+            <app-spinner [size]="18" label="Creating your account" />
+          }
+          Create account
+        </button>
+      </form>
+    }
+    @case ('ready') {
+      <div class="flex items-start gap-3">
+        <span
+          class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-brand/15 text-brand"
+          aria-hidden="true"
+        >
+          <app-icon name="check" [size]="22" />
+        </span>
+        <div class="min-w-0 flex-1">
+          <h2 class="font-semibold text-fg">Your account is ready</h2>
+          <p class="mt-1 text-sm leading-snug text-muted">
+            An account for
+            <span class="font-medium break-words text-fg">{{ email() }}</span> already exists. Sign
+            in with your email and password.
+          </p>
+        </div>
+      </div>
+      <button type="button" class="btn btn-secondary mt-4 w-full" (click)="dismiss()">
+        Got it
+      </button>
+    }
+    @case ('rejected') {
+      <div class="flex items-start gap-3">
+        <span
+          class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-surface-2 text-muted"
+          aria-hidden="true"
+        >
+          <app-icon name="info" [size]="22" />
+        </span>
+        <div class="min-w-0 flex-1">
+          <h2 class="font-semibold text-fg">Request not approved</h2>
+          <p class="mt-1 text-sm leading-relaxed text-muted">
+            Sorry{{ name() ? ', ' + name() : '' }} — the owner didn’t approve this request. If you
+            think that’s a mistake, reach out to them directly.
+          </p>
+          <p class="mt-2 text-sm leading-relaxed text-muted">
+            Already have an account? Sign in with your email and password. Forgot your password? Ask
+            the owner for a reset link.
+          </p>
+        </div>
+      </div>
+      <button type="button" class="btn btn-secondary mt-4 w-full" (click)="dismiss()">OK</button>
+    }
+  }
+</div>

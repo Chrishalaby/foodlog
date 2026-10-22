@@ -1,0 +1,157 @@
+<form class="flex flex-col gap-4" novalidate (submit)="submit($event)">
+  <header class="flex items-start gap-3">
+    <span
+      class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent"
+      aria-hidden="true"
+    >
+      <app-icon name="barcode" [size]="22" />
+    </span>
+    <div class="min-w-0 flex-1">
+      <h2 class="text-lg leading-6 font-semibold tracking-tight">{{ title() }}</h2>
+      @if (code(); as barcode) {
+        <p class="mt-0.5 text-xs text-muted tabular-nums">Barcode {{ barcode }}</p>
+      } @else {
+        <p class="mt-0.5 text-xs text-muted">Saved in My foods</p>
+      }
+    </div>
+    <button
+      type="button"
+      class="btn btn-ghost btn-icon -mt-1 -mr-2 text-muted"
+      aria-label="Cancel"
+      [disabled]="busy()"
+      (click)="cancelled.emit()"
+    >
+      <app-icon name="close" [size]="22" />
+    </button>
+  </header>
+
+  <div class="grid gap-3">
+    <div>
+      <label class="label" [for]="fieldId('name')">Product name</label>
+      <input
+        #nameInput
+        type="text"
+        class="input"
+        autocomplete="off"
+        autocapitalize="sentences"
+        placeholder="e.g. Strawberry yogurt"
+        [id]="fieldId('name')"
+        [attr.maxlength]="nameMax"
+        [attr.aria-invalid]="submitted() && !draft().name.trim() ? true : null"
+        [value]="draft().name"
+        (input)="onText('name', $event)"
+      />
+    </div>
+    <div>
+      <label class="label" [for]="fieldId('brand')"
+        >Brand <span class="font-normal text-muted/80">(optional)</span></label
+      >
+      <input
+        type="text"
+        class="input"
+        autocomplete="off"
+        autocapitalize="words"
+        placeholder="e.g. Khoury"
+        [id]="fieldId('brand')"
+        [attr.maxlength]="nameMax"
+        [value]="draft().brand"
+        (input)="onText('brand', $event)"
+      />
+    </div>
+  </div>
+
+  <app-segmented-control
+    ariaLabel="Nutrition values are per"
+    [options]="unitOptions"
+    [value]="draft().basisUnit"
+    (valueChange)="setUnit($event)"
+  />
+
+  <fieldset class="rounded-2xl border border-line/70 bg-surface py-1.5">
+    <legend class="sr-only">Nutrition per 100 {{ draft().basisUnit }}</legend>
+    @for (field of fields(); track field.key) {
+      <div class="flex items-center gap-3 py-1 pr-2 pl-3.5">
+        <label
+          class="min-w-0 flex-1 text-sm"
+          [class]="field.indent ? 'pl-3 text-muted' : 'font-medium text-fg'"
+          [for]="fieldId(field.key)"
+          >{{ field.label }}</label
+        >
+        <div class="relative w-32 shrink-0">
+          <app-number-input
+            inputClass="input h-11 pr-12 text-right tabular-nums"
+            [inputId]="fieldId(field.key)"
+            [value]="draft().per100[field.key]"
+            [decimals]="field.decimals"
+            [max]="field.max"
+            (valueChange)="setNutrient(field.key, $event)"
+          />
+          <span
+            class="pointer-events-none absolute inset-y-0 right-3.5 flex items-center text-xs text-muted"
+            >{{ field.unit }}</span
+          >
+        </div>
+      </div>
+    }
+  </fieldset>
+  <ul class="-mt-2 flex flex-col gap-0.5 text-xs leading-snug text-muted" [id]="fieldId('hints')">
+    <li>Energy in kcal. If the label only shows kJ, divide it by 4.184.</li>
+    <li>Carbs include fibre. On EU-style labels, add the fibre to the carbohydrate value.</li>
+    <li>Sodium in mg. If the label only shows salt, multiply the grams of salt by 400.</li>
+  </ul>
+
+  <div class="grid grid-cols-2 gap-3">
+    @for (size of sizeFields; track size.key) {
+      <div>
+        <label class="label" [for]="fieldId(size.key)">{{ size.label }}</label>
+        <div class="relative">
+          <app-number-input
+            inputClass="input pr-10 text-right tabular-nums"
+            [inputId]="fieldId(size.key)"
+            [value]="draft()[size.key]"
+            [decimals]="1"
+            [max]="sizeMax"
+            (valueChange)="setSize(size.key, $event)"
+          />
+          <span
+            class="pointer-events-none absolute inset-y-0 right-3.5 flex items-center text-xs text-muted"
+            >{{ draft().basisUnit }}</span
+          >
+        </div>
+      </div>
+    }
+  </div>
+  <p class="-mt-2 text-xs leading-snug text-muted">Leave 0 when a size isn't on the package.</p>
+
+  @if (message(); as text) {
+    <p
+      class="flex items-start gap-2 rounded-xl bg-danger/10 px-3 py-2 text-sm leading-snug text-danger"
+      role="alert"
+    >
+      <app-icon class="mt-0.5" name="alert" [size]="16" />
+      {{ text }}
+    </p>
+  }
+
+  <div
+    class="sticky bottom-[calc(-1.25rem-env(safe-area-inset-bottom))] -mx-5 mb-[calc(-1.25rem-env(safe-area-inset-bottom))] flex flex-col gap-1 border-t border-line/70 bg-elevated px-5 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
+  >
+    <button type="submit" class="btn btn-primary min-h-13 w-full text-base" [disabled]="busy()">
+      @if (busy()) {
+        <app-spinner [size]="18" label="Saving" />
+        Saving…
+      } @else {
+        <app-icon name="check" [strokeWidth]="2.5" />
+        {{ editing() ? 'Save changes' : 'Save product' }}
+      }
+    </button>
+    <button
+      type="button"
+      class="btn btn-ghost min-h-11 w-full text-sm text-muted"
+      [disabled]="busy()"
+      (click)="cancelled.emit()"
+    >
+      Cancel
+    </button>
+  </div>
+</form>

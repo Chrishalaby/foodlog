@@ -1,0 +1,118 @@
+<app-auth-layout
+  title="Set up FoodLog"
+  subtitle="Create the account for this server. You only need to do this once."
+>
+  <form class="flex flex-col gap-4" [formRoot]="setupForm">
+    @if (error(); as message) {
+      <div
+        class="flex items-start gap-2.5 rounded-xl border border-danger/30 bg-danger/10 px-3.5 py-3 text-sm leading-snug text-danger"
+        role="alert"
+      >
+        <app-icon class="mt-px" name="alert" [size]="18" />
+        <span>{{ message }}</span>
+      </div>
+    }
+
+    <div>
+      <label class="label" for="setup-email">Email</label>
+      <input
+        id="setup-email"
+        class="input"
+        type="email"
+        inputmode="email"
+        autocomplete="username"
+        autocapitalize="off"
+        spellcheck="false"
+        placeholder="you@example.com"
+        [formField]="setupForm.email"
+        [attr.aria-invalid]="setupForm.email().touched() && setupForm.email().invalid()"
+      />
+      @if (setupForm.email().touched() && setupForm.email().errors()[0]; as err) {
+        <p class="mt-1.5 text-xs text-danger">{{ err.message }}</p>
+      }
+    </div>
+
+    <div>
+      <label class="label" for="setup-password">Password</label>
+      <div class="relative">
+        <input
+          id="setup-password"
+          class="input pr-12"
+          autocomplete="new-password"
+          aria-describedby="setup-password-hint"
+          [type]="showPassword() ? 'text' : 'password'"
+          [formField]="setupForm.password"
+          [attr.aria-invalid]="setupForm.password().touched() && setupForm.password().invalid()"
+        />
+        <button
+          type="button"
+          class="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-xl text-muted transition hover:text-fg"
+          [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
+          [attr.aria-pressed]="showPassword()"
+          (click)="togglePassword()"
+        >
+          <app-icon [name]="showPassword() ? 'eye-off' : 'eye'" />
+        </button>
+      </div>
+      @if (setupForm.password().touched() && setupForm.password().errors()[0]; as err) {
+        <p class="mt-1.5 text-xs text-danger">{{ err.message }}</p>
+      } @else {
+        <p id="setup-password-hint" class="mt-1.5 text-xs text-muted">
+          At least {{ passwordMin }} characters.
+        </p>
+      }
+    </div>
+
+    <div>
+      <label class="label" for="setup-confirm">Confirm password</label>
+      <input
+        id="setup-confirm"
+        class="input"
+        autocomplete="new-password"
+        [type]="showPassword() ? 'text' : 'password'"
+        [formField]="setupForm.confirmPassword"
+        [attr.aria-invalid]="
+          setupForm.confirmPassword().touched() && setupForm.confirmPassword().invalid()
+        "
+      />
+      @if (
+        setupForm.confirmPassword().touched() && setupForm.confirmPassword().errors()[0];
+        as err
+      ) {
+        <p class="mt-1.5 text-xs text-danger">{{ err.message }}</p>
+      }
+    </div>
+
+    <div>
+      <label class="label" for="setup-code">Setup code</label>
+      <input
+        id="setup-code"
+        class="input font-mono tracking-wide"
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck="false"
+        aria-describedby="setup-code-hint"
+        [formField]="setupForm.setupCode"
+        [attr.aria-invalid]="setupForm.setupCode().touched() && setupForm.setupCode().invalid()"
+      />
+      @if (setupForm.setupCode().touched() && setupForm.setupCode().errors()[0]; as err) {
+        <p class="mt-1.5 text-xs text-danger">{{ err.message }}</p>
+      }
+      <p id="setup-code-hint" class="mt-1.5 flex items-center gap-1.5 text-xs text-muted">
+        <app-icon name="info" [size]="14" />
+        Your SETUP_CODE, or the code printed in the server log on first start
+      </p>
+    </div>
+
+    <button
+      type="submit"
+      class="btn btn-primary mt-1 min-h-12 w-full text-base"
+      [disabled]="setupForm().submitting()"
+    >
+      @if (setupForm().submitting()) {
+        <app-spinner [size]="18" label="Creating account" />
+      }
+      Create account
+    </button>
+  </form>
+</app-auth-layout>
