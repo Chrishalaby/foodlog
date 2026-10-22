@@ -1,6 +1,6 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { FormField, type FieldTree } from '@angular/forms/signals';
-import { API_LIMITS, type AiConfigDto, type ImageDetail } from '@food/shared';
+import { API_LIMITS, type AiConfigDto, type AiProviderKind, type ImageDetail } from '@food/shared';
 import { AuthService } from '../../../core/auth.service';
 import { Icon, type IconName } from '../../../shared/ui/icon';
 import { ChoiceField, type ChoiceOption } from '../controls/choice-field';
@@ -8,6 +8,7 @@ import { FieldError } from '../controls/field-error';
 import { ModelPicker } from '../controls/model-picker';
 import type { ProfileFormModel } from '../profile-model';
 import { budgetNote, budgetStatus, formatUsd, projectMonthEndUsd, utcMonthOf } from '../usage-math';
+import { AiProviderCard } from './ai-provider-card';
 import { SettingsSection } from './settings-section';
 
 interface ProviderBanner {
@@ -17,25 +18,27 @@ interface ProviderBanner {
   text: string;
 }
 
-export const PROVIDER_BANNERS: Record<AiConfigDto['provider'], ProviderBanner> = {
-  openai: {
-    icon: 'check',
-    tone: 'border-ok/30 bg-ok/10 text-ok',
-    title: 'Connected to OpenAI',
-    text: 'Photos and descriptions are analysed by the model you choose below.',
-  },
-  mock: {
-    icon: 'info',
-    tone: 'border-accent/30 bg-accent/10 text-accent',
-    title: 'Demo mode: results are simulated',
-    text: 'The server uses a mock provider, so estimates are placeholders and cost nothing.',
-  },
-  unconfigured: {
-    icon: 'info',
-    tone: 'border-accent/30 bg-accent/10 text-accent',
-    title: 'AI estimates are off',
-    text: 'Search, the food database, barcodes and manual entry all work without AI. To add photo, label and voice estimates, set OPENAI_API_KEY on the server (and OPENAI_BASE_URL for another OpenAI-compatible endpoint), then restart it.',
-  },
+export const PROVIDER_NAMES: Readonly<Record<AiProviderKind, string>> = {
+  openai: 'OpenAI',
+  anthropic: 'Claude',
+  gemini: 'Google Gemini',
+  openrouter: 'OpenRouter',
+  local: 'your local AI server',
+  custom: 'your AI server',
+};
+
+export const MOCK_BANNER: ProviderBanner = {
+  icon: 'info',
+  tone: 'border-accent/30 bg-accent/10 text-accent',
+  title: 'Demo mode: results are simulated',
+  text: 'The server uses a mock provider, so estimates are placeholders and cost nothing.',
+};
+
+export const UNCONFIGURED_BANNER: ProviderBanner = {
+  icon: 'info',
+  tone: 'border-accent/30 bg-accent/10 text-accent',
+  title: 'AI estimates are off',
+  text: 'Search, the food database, barcodes and manual entry all work without AI. To add photo, label and voice estimates, choose a provider under AI provider below and paste its API key.',
 };
 
 export const MEMBER_UNCONFIGURED_TEXT =
@@ -44,11 +47,24 @@ export const MEMBER_UNCONFIGURED_TEXT =
 export function providerBanner(
   provider: AiConfigDto['provider'],
   isAdmin: boolean,
+  customEndpoint = false,
 ): ProviderBanner {
-  const banner = PROVIDER_BANNERS[provider];
-  return provider === 'unconfigured' && !isAdmin
-    ? { ...banner, text: MEMBER_UNCONFIGURED_TEXT }
-    : banner;
+  if (provider === 'mock') {
+    return MOCK_BANNER;
+  }
+  if (provider === 'unconfigured') {
+    return isAdmin
+      ? UNCONFIGURED_BANNER
+      : { ...UNCONFIGURED_BANNER, text: MEMBER_UNCONFIGURED_TEXT };
+  }
+  const name =
+    provider === 'openai' && customEndpoint ? PROVIDER_NAMES.custom : PROVIDER_NAMES[provider];
+  return {
+    icon: 'check',
+    tone: 'border-ok/30 bg-ok/10 text-ok',
+    title: `Connected to ${name}`,
+    text: 'Photos and descriptions are analysed by the model you choose below.',
+  };
 }
 
 interface AiBudgetView {
@@ -124,7 +140,7 @@ const DETAIL_OPTIONS: readonly ChoiceOption<ImageDetail>[] = [
 
 @Component({
   selector: 'app-ai-section',
-  imports: [SettingsSection, FormField, ModelPicker, ChoiceField, FieldError, Icon],
+  imports: [SettingsSection, FormField, ModelPicker, ChoiceField, FieldError, Icon, AiProviderCard],
   template: `
     @let f = form();
     @let config = ai();
@@ -146,6 +162,10 @@ const DETAIL_OPTIONS: readonly ChoiceOption<ImageDetail>[] = [
           <p class="mt-0.5 opacity-90">{{ banner().text }}</p>
         </div>
       </div>
+
+      @if (isAdmin()) {
+        <app-ai-provider-card />
+      }
 
       <h3 class="label mt-4" id="ai-model-label">Model</h3>
       <app-model-picker
@@ -255,9 +275,11 @@ export class AiSection {
 
   protected readonly detailOptions = DETAIL_OPTIONS;
   protected readonly locationMax = API_LIMITS.locationMax;
-  private readonly isAdmin = inject(AuthService).isAdmin;
+  protected readonly isAdmin = inject(AuthService).isAdmin;
 
-  protected readonly banner = computed(() => providerBanner(this.ai().provider, this.isAdmin()));
+  protected readonly banner = computed(() =>
+    providerBanner(this.ai().provider, this.isAdmin(), this.ai().customEndpoint),
+  );
   protected readonly budget = computed(() =>
     aiBudgetView(this.ai().monthlyBudgetUsd, this.monthToDateUsd()),
   );

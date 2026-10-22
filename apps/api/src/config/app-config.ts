@@ -15,6 +15,7 @@ export class AppConfig implements AppSettings {
   readonly databaseUrl: string;
   readonly cookieSecure: boolean;
   readonly jwtSecret: string | null;
+  readonly secretsKey: string | null;
   readonly setupCode: string | null;
   readonly adminEmails: readonly string[];
   readonly appUrl: string | null;
@@ -33,6 +34,7 @@ export class AppConfig implements AppSettings {
     this.databaseUrl = settings.databaseUrl;
     this.cookieSecure = settings.cookieSecure;
     this.jwtSecret = settings.jwtSecret;
+    this.secretsKey = settings.secretsKey;
     this.setupCode = settings.setupCode;
     this.adminEmails = Object.freeze([...settings.adminEmails]);
     this.appUrl = settings.appUrl;

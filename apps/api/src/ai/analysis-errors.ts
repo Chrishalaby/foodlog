@@ -11,7 +11,7 @@ import type {
 } from './providers/ai-provider-error.js';
 
 export const AI_NOT_CONFIGURED_MESSAGE =
-  'AI is not configured — set OPENAI_API_KEY';
+  'AI is not configured — an admin can add a provider in Settings → AI';
 export const BUDGET_REACHED_MESSAGE = 'Monthly AI budget reached';
 
 export function tooManyRequests(message: string): HttpException {

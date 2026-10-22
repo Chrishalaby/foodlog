@@ -433,7 +433,7 @@ describe('LogPage', () => {
     expect(banner.textContent?.replace(/\s+/g, ' ')).toContain(
       'AI is not set up. Log from your foods, scan a barcode or enter this meal manually.',
     );
-    expect(banner.textContent).not.toContain('OPENAI_API_KEY');
+    expect(banner.textContent).not.toContain('Settings → AI');
   });
 
   it('halves the whole meal from the portion chips before saving', async () => {

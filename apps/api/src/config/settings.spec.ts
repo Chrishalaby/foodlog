@@ -21,6 +21,7 @@ describe('parseSettings', () => {
       databaseUrl: DATABASE_URL,
       cookieSecure: false,
       jwtSecret: null,
+      secretsKey: null,
       setupCode: null,
       adminEmails: [],
       appUrl: null,
@@ -55,6 +56,16 @@ describe('parseSettings', () => {
     expect(
       parseSettings({ DATABASE_URL, NOTES_ENABLED: 'true' }).notesEnabled,
     ).toBe(true);
+  });
+
+  it('reads SECRETS_KEY and rejects one shorter than 32 characters', () => {
+    const secretsKey = 'k'.repeat(40);
+    expect(
+      parseSettings({ DATABASE_URL, SECRETS_KEY: secretsKey }).secretsKey,
+    ).toBe(secretsKey);
+    expect(() => parseSettings({ DATABASE_URL, SECRETS_KEY: 'short' })).toThrow(
+      /SECRETS_KEY: must be at least 32 characters/,
+    );
   });
 
   it('normalizes ADMIN_EMAILS into a lowercase, de-duplicated list', () => {

@@ -5,8 +5,11 @@ export interface ModelPricing {
   output: number;
 }
 
+export type ModelVendor = 'openai' | 'anthropic';
+
 export interface ModelCatalogEntry {
   id: string;
+  vendor: ModelVendor;
   label: string;
   description: string;
   selectable: boolean;
@@ -22,6 +25,7 @@ export const TYPICAL_REQUEST_TOKENS = { input: 2800, output: 1500 } as const;
 export const MODEL_CATALOG: readonly ModelCatalogEntry[] = [
   {
     id: 'gpt-5.6-sol',
+    vendor: 'openai',
     label: 'GPT-5.6 Sol',
     description:
       'Default. Best measured vision accuracy among the fast models.',
@@ -34,6 +38,7 @@ export const MODEL_CATALOG: readonly ModelCatalogEntry[] = [
   },
   {
     id: 'gpt-6-sol',
+    vendor: 'openai',
     label: 'GPT-6 Sol',
     description:
       'Newest mid-tier model with fewer hallucinations, about half the cost of 5.6 Sol.',
@@ -46,6 +51,7 @@ export const MODEL_CATALOG: readonly ModelCatalogEntry[] = [
   },
   {
     id: 'gpt-6-astra',
+    vendor: 'openai',
     label: 'GPT-6 Astra',
     description:
       'Maximum accuracy. Slower (about 25 s) and about 2.5× the cost of the default.',
@@ -58,6 +64,7 @@ export const MODEL_CATALOG: readonly ModelCatalogEntry[] = [
   },
   {
     id: 'gpt-5.6-luna',
+    vendor: 'openai',
     label: 'GPT-5.6 Luna',
     description:
       'Budget option, about 15× cheaper. Noticeably weaker at portion sizes.',
@@ -70,6 +77,7 @@ export const MODEL_CATALOG: readonly ModelCatalogEntry[] = [
   },
   {
     id: 'gpt-6-luna',
+    vendor: 'openai',
     label: 'GPT-6 Luna',
     description: 'Cheapest and fastest. Least accurate.',
     selectable: true,
@@ -81,6 +89,7 @@ export const MODEL_CATALOG: readonly ModelCatalogEntry[] = [
   },
   {
     id: 'gpt-5.6-terra',
+    vendor: 'openai',
     label: 'GPT-5.6 Terra',
     description: 'Mid tier.',
     selectable: false,
@@ -92,6 +101,7 @@ export const MODEL_CATALOG: readonly ModelCatalogEntry[] = [
   },
   {
     id: 'gpt-5.5',
+    vendor: 'openai',
     label: 'GPT-5.5',
     description: 'Previous generation.',
     selectable: false,
@@ -103,6 +113,7 @@ export const MODEL_CATALOG: readonly ModelCatalogEntry[] = [
   },
   {
     id: 'gpt-5.4',
+    vendor: 'openai',
     label: 'GPT-5.4',
     description: 'Previous generation.',
     selectable: false,
@@ -114,6 +125,7 @@ export const MODEL_CATALOG: readonly ModelCatalogEntry[] = [
   },
   {
     id: 'gpt-5.4-mini',
+    vendor: 'openai',
     label: 'GPT-5.4 mini',
     description: 'Previous generation.',
     selectable: false,
@@ -125,6 +137,7 @@ export const MODEL_CATALOG: readonly ModelCatalogEntry[] = [
   },
   {
     id: 'gpt-4.1',
+    vendor: 'openai',
     label: 'GPT-4.1',
     description: 'Legacy non-reasoning model.',
     selectable: false,
@@ -136,6 +149,7 @@ export const MODEL_CATALOG: readonly ModelCatalogEntry[] = [
   },
   {
     id: 'gpt-4.1-mini',
+    vendor: 'openai',
     label: 'GPT-4.1 mini',
     description: 'Legacy non-reasoning model.',
     selectable: false,
@@ -144,6 +158,43 @@ export const MODEL_CATALOG: readonly ModelCatalogEntry[] = [
     minReasoningEffort: 'none',
     explicitPromptCache: false,
     fastTierMultiplier: 1.75,
+  },
+  {
+    id: 'claude-sonnet-5-5',
+    vendor: 'anthropic',
+    label: 'Claude Sonnet 5.5',
+    description:
+      'Default for Claude. Fast and accurate with photos and labels.',
+    selectable: true,
+    recommended: true,
+    pricing: { input: 2, cachedInput: 0.2, cacheWrite: 2.5, output: 10 },
+    minReasoningEffort: 'low',
+    explicitPromptCache: false,
+    fastTierMultiplier: 1,
+  },
+  {
+    id: 'claude-opus-5-5',
+    vendor: 'anthropic',
+    label: 'Claude Opus 5.5',
+    description: 'Maximum accuracy. Slower and about twice the cost of Sonnet.',
+    selectable: true,
+    recommended: false,
+    pricing: { input: 4, cachedInput: 0.2, cacheWrite: 5, output: 20 },
+    minReasoningEffort: 'low',
+    explicitPromptCache: false,
+    fastTierMultiplier: 1,
+  },
+  {
+    id: 'claude-haiku-5-5',
+    vendor: 'anthropic',
+    label: 'Claude Haiku 5.5',
+    description: 'Cheapest and fastest Claude. Less accurate with portions.',
+    selectable: true,
+    recommended: false,
+    pricing: { input: 0.1, cachedInput: 0.01, cacheWrite: 0.125, output: 0.5 },
+    minReasoningEffort: 'low',
+    explicitPromptCache: false,
+    fastTierMultiplier: 1,
   },
 ];
 
@@ -163,8 +214,18 @@ export function findModel(model: string): ModelCatalogEntry | undefined {
   return MODEL_CATALOG.find((entry) => entry.id === id);
 }
 
-export function isSelectableModel(model: string): boolean {
-  return findModel(model)?.selectable === true;
+export function isSelectableModel(
+  model: string,
+  vendor: ModelVendor = 'openai',
+): boolean {
+  const entry = findModel(model);
+  return entry?.selectable === true && entry.vendor === vendor;
+}
+
+export function selectableModels(vendor: ModelVendor): ModelCatalogEntry[] {
+  return MODEL_CATALOG.filter(
+    (entry) => entry.selectable && entry.vendor === vendor,
+  );
 }
 
 export function supportsReasoning(model: string): boolean {

@@ -35,6 +35,51 @@ describe('ApiService', () => {
     await expect(promise).resolves.toEqual(response);
   });
 
+  it('reads, saves, tests and removes the admin AI provider', async () => {
+    const body = {
+      provider: 'anthropic' as const,
+      model: 'claude-sonnet-5-5',
+      preciseModel: 'claude-opus-5-5',
+      apiKey: 'sk-ant-test',
+      voiceEnabled: false,
+    };
+    const empty = {
+      source: 'none' as const,
+      editable: true,
+      active: false,
+      voice: false,
+      keyUnreadable: false,
+      settings: null,
+      server: null,
+    };
+
+    const read = api.adminAiProvider();
+    const get = http.expectOne('/api/admin/ai-provider');
+    expect(get.request.method).toBe('GET');
+    get.flush(empty);
+    await expect(read).resolves.toEqual(empty);
+
+    const saved = api.adminSaveAiProvider(body);
+    const put = http.expectOne('/api/admin/ai-provider');
+    expect(put.request.method).toBe('PUT');
+    expect(put.request.body).toEqual(body);
+    put.flush({ ...empty, source: 'app', active: true });
+    await expect(saved).resolves.toMatchObject({ source: 'app' });
+
+    const tested = api.adminTestAiProvider(body);
+    const post = http.expectOne('/api/admin/ai-provider/test');
+    expect(post.request.method).toBe('POST');
+    expect(post.request.body).toEqual(body);
+    post.flush({ ok: true, model: 'claude-sonnet-5-5', latencyMs: 900, message: 'Connected.' });
+    await expect(tested).resolves.toMatchObject({ ok: true });
+
+    const removed = api.adminRemoveAiProvider();
+    const del = http.expectOne('/api/admin/ai-provider');
+    expect(del.request.method).toBe('DELETE');
+    del.flush(empty);
+    await expect(removed).resolves.toEqual(empty);
+  });
+
   it('reads, creates, updates and deletes fluid logs', async () => {
     const day = api.fluidDay('2026-10-01');
     const get = http.expectOne((r) => r.url === '/api/fluids');

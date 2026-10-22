@@ -1,48 +1,59 @@
 import type { AiConfigDto, AiModelOption } from '@food/shared';
 import { Injectable } from '@nestjs/common';
 import { AppConfig } from '../config/app-config.js';
+import { AiProviderSettingsService } from './ai-provider-settings.service.js';
+import type { AiConnection } from './ai-runtime-settings.js';
 import {
   canonicalModelId,
   estimateTypicalCostUsd,
   isSelectableModel,
-  MODEL_CATALOG,
+  selectableModels,
 } from './models.js';
 
 @Injectable()
 export class AiConfigService {
-  constructor(private readonly config: AppConfig) {}
+  constructor(
+    private readonly config: AppConfig,
+    private readonly settings: AiProviderSettingsService,
+  ) {}
+
+  private get connection(): AiConnection {
+    return this.settings.snapshot().ai;
+  }
 
   get provider(): AiConfigDto['provider'] {
-    if (this.config.ai.provider === 'mock') {
-      return 'mock';
-    }
-    return this.config.ai.apiKey ? 'openai' : 'unconfigured';
+    return this.connection.provider;
   }
 
   get customEndpoint(): boolean {
-    return this.config.ai.baseUrl !== null;
+    return this.connection.catalog === null;
   }
 
   get voiceEnabled(): boolean {
-    if (this.provider === 'mock') {
+    const { ai, voice } = this.settings.snapshot();
+    if (ai.provider === 'mock') {
       return true;
     }
-    const { ai } = this.config;
-    return ai.voiceEnabled && Boolean(ai.transcribeApiKey ?? ai.apiKey);
+    return ai.provider !== 'unconfigured' && voice.enabled;
+  }
+
+  get transcribeModel(): string {
+    return this.settings.snapshot().voice.model.trim();
   }
 
   get defaultModel(): string {
-    return canonicalModelId(this.config.ai.model);
+    return canonicalModelId(this.connection.model);
   }
 
   get preciseModel(): string {
-    return canonicalModelId(this.config.ai.preciseModel);
+    return canonicalModelId(this.connection.preciseModel);
   }
 
   isSelectableModel(model: string): boolean {
-    return this.customEndpoint
+    const { catalog } = this.connection;
+    return catalog === null
       ? this.customModels().includes(model.trim())
-      : isSelectableModel(model);
+      : isSelectableModel(model, catalog);
   }
 
   resolveModel(
@@ -61,7 +72,8 @@ export class AiConfigService {
   }
 
   availableModels(): AiModelOption[] {
-    if (this.customEndpoint) {
+    const { catalog } = this.connection;
+    if (catalog === null) {
       return this.customModels().map((id) => ({
         id,
         label: id,
@@ -73,7 +85,7 @@ export class AiConfigService {
         recommended: id === this.defaultModel,
       }));
     }
-    return MODEL_CATALOG.filter((entry) => entry.selectable).map((entry) => ({
+    return selectableModels(catalog).map((entry) => ({
       id: entry.id,
       label: entry.label,
       description: entry.description,

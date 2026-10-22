@@ -1,0 +1,424 @@
+<section
+  class="mt-4 rounded-2xl border border-line/70 p-3.5"
+  aria-labelledby="ai-provider-heading"
+  data-testid="ai-provider-card"
+>
+  <div class="flex items-center justify-between gap-3">
+    <h3 id="ai-provider-heading" class="flex items-center gap-2 font-semibold text-fg">
+      <app-icon class="text-accent" name="key" [size]="18" />
+      AI provider
+    </h3>
+    <span class="chip bg-accent/15 text-accent">Admin</span>
+  </div>
+
+  @switch (state()) {
+    @case ('loading') {
+      <div class="flex items-center gap-2 py-4 text-sm text-muted" role="status">
+        <app-spinner [size]="18" label="Loading the AI provider" />
+        Loading…
+      </div>
+    }
+    @case ('error') {
+      <div class="mt-2 flex items-center justify-between gap-3" role="alert">
+        <p class="text-sm text-danger">{{ loadError() }}</p>
+        <button type="button" class="btn btn-secondary shrink-0" (click)="load()">Try again</button>
+      </div>
+    }
+    @case ('ready') {
+      @let r = response()!;
+      @if (!editable()) {
+        <p class="mt-1 text-xs leading-relaxed text-muted">
+          @if (r.source === 'demo') {
+            The demo uses simulated AI, so the provider cannot be changed.
+          } @else {
+            Set on the server. To manage the provider here instead, remove OPENAI_API_KEY and
+            AI_PROVIDER from the server's environment and restart it.
+          }
+        </p>
+        @if (r.server; as server) {
+          <dl class="mt-3 divide-y divide-line/60 rounded-xl bg-surface-2 text-sm">
+            <div class="flex items-center justify-between gap-3 px-3.5 py-2.5">
+              <dt class="text-muted">Provider</dt>
+              <dd class="min-w-0 truncate font-medium text-fg">{{ serverTitle() }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-3 px-3.5 py-2.5">
+              <dt class="text-muted">Model</dt>
+              <dd class="min-w-0 truncate font-medium text-fg">{{ server.model }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-3 px-3.5 py-2.5">
+              <dt class="text-muted">Precise model</dt>
+              <dd class="min-w-0 truncate font-medium text-fg">{{ server.preciseModel }}</dd>
+            </div>
+          </dl>
+        }
+      } @else {
+        @let d = draft();
+        @let p = preset();
+        @let errors = problems();
+        <p class="mt-1 text-xs leading-relaxed text-muted">
+          Only admins see this. Keys are stored encrypted on this server and are never shown again.
+        </p>
+
+        @if (r.keyUnreadable) {
+          <p
+            class="mt-3 flex items-start gap-2 rounded-xl border border-warn/30 bg-warn/10 px-3 py-2.5 text-sm text-warn"
+            role="alert"
+          >
+            <app-icon class="mt-px" name="alert" [size]="16" />
+            A saved key can no longer be read, probably because SECRETS_KEY changed. Enter it again.
+          </p>
+        }
+
+        <div class="mt-3">
+          <label class="label" for="ai-provider-kind">Provider</label>
+          <select
+            id="ai-provider-kind"
+            class="input"
+            aria-describedby="ai-provider-kind-hint"
+            [value]="d.provider"
+            [disabled]="busy()"
+            (change)="onProvider($event)"
+          >
+            @for (option of presets; track option.kind) {
+              <option [value]="option.kind" [selected]="option.kind === d.provider">
+                {{ option.label }}
+              </option>
+            }
+          </select>
+          <p id="ai-provider-kind-hint" class="mt-1.5 text-xs leading-relaxed text-muted">
+            {{ p.description }}
+          </p>
+        </div>
+
+        <div class="mt-4">
+          <span class="label" id="ai-provider-key-label">
+            API key
+            @if (!p.keyRequired) {
+              <span class="font-normal">(optional)</span>
+            }
+          </span>
+          @if (savedKey() && !d.replaceKey) {
+            <div
+              class="flex min-h-11 items-center gap-2 rounded-xl bg-surface-2 py-1 pr-1 pl-3.5"
+              aria-labelledby="ai-provider-key-label"
+            >
+              <app-icon class="text-muted" name="lock" [size]="16" />
+              <span class="min-w-0 flex-1 font-mono text-sm text-fg" data-testid="saved-key">{{
+                maskedKey()
+              }}</span>
+              <button
+                type="button"
+                class="btn btn-ghost min-h-10 px-3 text-brand"
+                [disabled]="busy()"
+                (click)="replaceKey(true)"
+              >
+                Replace
+              </button>
+              <button
+                type="button"
+                class="btn btn-ghost min-h-10 px-3 text-danger"
+                [disabled]="busy()"
+                (click)="remove()"
+              >
+                Remove
+              </button>
+            </div>
+          } @else {
+            <div class="flex gap-2">
+              <input
+                id="ai-provider-key"
+                class="input font-mono"
+                type="password"
+                autocomplete="off"
+                autocapitalize="off"
+                spellcheck="false"
+                aria-labelledby="ai-provider-key-label"
+                [attr.aria-describedby]="errors.apiKey ? 'ai-provider-key-error' : null"
+                [attr.aria-invalid]="errors.apiKey ? true : null"
+                [attr.maxlength]="limits.apiKeyMax"
+                [placeholder]="p.keyPlaceholder"
+                [value]="d.apiKey"
+                [disabled]="busy()"
+                (input)="onText('apiKey', $event)"
+              />
+              @if (savedKey()) {
+                <button
+                  type="button"
+                  class="btn btn-ghost shrink-0 px-3"
+                  [disabled]="busy()"
+                  (click)="replaceKey(false)"
+                >
+                  Cancel
+                </button>
+              }
+            </div>
+            @if (errors.apiKey; as message) {
+              <p id="ai-provider-key-error" class="mt-1.5 text-xs text-danger">{{ message }}</p>
+            }
+          }
+        </div>
+
+        @if (p.baseUrlEditable) {
+          <div class="mt-4">
+            <label class="label" for="ai-provider-url">Server address</label>
+            <input
+              id="ai-provider-url"
+              class="input"
+              type="url"
+              inputmode="url"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
+              [attr.aria-describedby]="
+                errors.baseUrl
+                  ? 'ai-provider-url-error ai-provider-url-hint'
+                  : 'ai-provider-url-hint'
+              "
+              [attr.aria-invalid]="errors.baseUrl ? true : null"
+              [attr.maxlength]="limits.baseUrlMax"
+              placeholder="https://your-server/v1"
+              [value]="d.baseUrl"
+              [disabled]="busy()"
+              (input)="onText('baseUrl', $event)"
+            />
+            @if (errors.baseUrl; as message) {
+              <p id="ai-provider-url-error" class="mt-1.5 text-xs text-danger">{{ message }}</p>
+            }
+            <p id="ai-provider-url-hint" class="mt-1.5 text-xs leading-relaxed text-muted">
+              @if (d.provider === 'local') {
+                Ollama listens on port 11434 and LM Studio on 1234. If FoodLog runs in Docker, use
+                http://host.docker.internal:11434/v1 or your computer's network address.
+              } @else {
+                The OpenAI-compatible address, usually ending in /v1.
+              }
+            </p>
+          </div>
+        }
+
+        @if (p.apiStyleEditable) {
+          <div class="mt-4">
+            <label class="label" for="ai-provider-style">API style</label>
+            <select
+              id="ai-provider-style"
+              class="input"
+              [value]="d.apiStyle"
+              [disabled]="busy()"
+              (change)="onApiStyle($event)"
+            >
+              @for (style of apiStyles; track style) {
+                <option [value]="style" [selected]="style === d.apiStyle">
+                  {{ styleLabels[style] }}
+                </option>
+              }
+            </select>
+          </div>
+        }
+
+        <datalist id="ai-provider-models">
+          @for (id of p.models; track id) {
+            <option [value]="id"></option>
+          }
+        </datalist>
+        <div class="mt-4 grid gap-4 sm:grid-cols-2">
+          <div>
+            <label class="label" for="ai-provider-model">Model</label>
+            <input
+              id="ai-provider-model"
+              class="input"
+              list="ai-provider-models"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
+              [attr.aria-describedby]="errors.model ? 'ai-provider-model-error' : null"
+              [attr.aria-invalid]="errors.model ? true : null"
+              [attr.maxlength]="limits.modelMax"
+              [value]="d.model"
+              [disabled]="busy()"
+              (input)="onText('model', $event)"
+            />
+            @if (errors.model; as message) {
+              <p id="ai-provider-model-error" class="mt-1.5 text-xs text-danger">{{ message }}</p>
+            }
+          </div>
+          <div>
+            <label class="label" for="ai-provider-precise">Precise model</label>
+            <input
+              id="ai-provider-precise"
+              class="input"
+              list="ai-provider-models"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
+              [attr.aria-describedby]="errors.preciseModel ? 'ai-provider-precise-error' : null"
+              [attr.aria-invalid]="errors.preciseModel ? true : null"
+              [attr.maxlength]="limits.modelMax"
+              [value]="d.preciseModel"
+              [disabled]="busy()"
+              (input)="onText('preciseModel', $event)"
+            />
+            @if (errors.preciseModel; as message) {
+              <p id="ai-provider-precise-error" class="mt-1.5 text-xs text-danger">{{ message }}</p>
+            }
+          </div>
+        </div>
+        <p class="mt-1.5 text-xs leading-relaxed text-muted">
+          Members choose between these. The precise model re-checks a meal when someone asks for it.
+        </p>
+
+        <app-toggle-row
+          class="mt-3"
+          icon="mic"
+          title="Voice dictation"
+          [detail]="d.voiceEnabled ? transcriptionHint() : 'The microphone button is hidden.'"
+          [checked]="d.voiceEnabled"
+          [disabled]="busy()"
+          (checkedChange)="setVoice($event)"
+        />
+        @if (d.voiceEnabled) {
+          <div class="grid gap-4 rounded-xl bg-surface-2 p-3 sm:grid-cols-2">
+            <div class="sm:col-span-2">
+              <label class="label" for="ai-transcribe-url"
+                >Transcription address <span class="font-normal">(optional)</span></label
+              >
+              <input
+                id="ai-transcribe-url"
+                class="input"
+                type="url"
+                inputmode="url"
+                autocomplete="off"
+                autocapitalize="off"
+                spellcheck="false"
+                placeholder="https://api.openai.com/v1"
+                [attr.aria-describedby]="
+                  errors.transcribeBaseUrl ? 'ai-transcribe-url-error' : null
+                "
+                [attr.aria-invalid]="errors.transcribeBaseUrl ? true : null"
+                [attr.maxlength]="limits.baseUrlMax"
+                [value]="d.transcribeBaseUrl"
+                [disabled]="busy()"
+                (input)="onText('transcribeBaseUrl', $event)"
+              />
+              @if (errors.transcribeBaseUrl; as message) {
+                <p id="ai-transcribe-url-error" class="mt-1.5 text-xs text-danger">{{ message }}</p>
+              }
+            </div>
+            <div>
+              <label class="label" for="ai-transcribe-model"
+                >Transcription model <span class="font-normal">(optional)</span></label
+              >
+              <input
+                id="ai-transcribe-model"
+                class="input"
+                autocomplete="off"
+                autocapitalize="off"
+                spellcheck="false"
+                placeholder="gpt-transcribe"
+                [attr.maxlength]="limits.modelMax"
+                [value]="d.transcribeModel"
+                [disabled]="busy()"
+                (input)="onText('transcribeModel', $event)"
+              />
+            </div>
+            <div>
+              <span class="label" id="ai-transcribe-key-label"
+                >Transcription key <span class="font-normal">(optional)</span></span
+              >
+              @if (savedTranscribeKey() && !d.replaceTranscribeKey) {
+                <div
+                  class="flex min-h-11 items-center gap-1 rounded-xl bg-surface py-1 pr-1 pl-3"
+                  aria-labelledby="ai-transcribe-key-label"
+                >
+                  <span class="min-w-0 flex-1 font-mono text-sm text-fg">{{
+                    maskedTranscribeKey()
+                  }}</span>
+                  <button
+                    type="button"
+                    class="btn btn-ghost min-h-10 px-2.5 text-brand"
+                    [disabled]="busy()"
+                    (click)="replaceTranscribeKey(true)"
+                  >
+                    Replace
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-ghost min-h-10 px-2.5 text-danger"
+                    [disabled]="busy()"
+                    (click)="removeTranscribeKey(true)"
+                  >
+                    Remove
+                  </button>
+                </div>
+              } @else {
+                <input
+                  id="ai-transcribe-key"
+                  class="input font-mono"
+                  type="password"
+                  autocomplete="off"
+                  autocapitalize="off"
+                  spellcheck="false"
+                  aria-labelledby="ai-transcribe-key-label"
+                  [attr.maxlength]="limits.apiKeyMax"
+                  [placeholder]="d.removeTranscribeKey ? 'Removed when you save' : 'sk-…'"
+                  [value]="d.transcribeApiKey"
+                  [disabled]="busy()"
+                  (input)="onText('transcribeApiKey', $event)"
+                />
+                @if (d.removeTranscribeKey) {
+                  <button
+                    type="button"
+                    class="btn btn-ghost mt-1 min-h-10 px-2.5 text-brand"
+                    [disabled]="busy()"
+                    (click)="removeTranscribeKey(false)"
+                  >
+                    Keep the saved key
+                  </button>
+                } @else if (d.replaceTranscribeKey) {
+                  <button
+                    type="button"
+                    class="btn btn-ghost mt-1 min-h-10 px-2.5"
+                    [disabled]="busy()"
+                    (click)="replaceTranscribeKey(false)"
+                  >
+                    Cancel
+                  </button>
+                }
+              }
+            </div>
+          </div>
+        }
+
+        <div aria-live="polite">
+          @if (testResult(); as result) {
+            <p
+              class="mt-4 flex items-start gap-2 rounded-xl border px-3 py-2.5 text-sm leading-snug"
+              [class]="
+                result.ok
+                  ? 'border-ok/30 bg-ok/10 text-ok'
+                  : 'border-danger/30 bg-danger/10 text-danger'
+              "
+              data-testid="ai-provider-test-result"
+            >
+              <app-icon class="mt-px" [name]="result.ok ? 'check' : 'alert'" [size]="16" />
+              <span class="min-w-0 break-words">{{ result.message }}{{ latency(result) }}</span>
+            </p>
+          }
+        </div>
+
+        <div class="mt-4 grid grid-cols-2 gap-2">
+          <button type="button" class="btn btn-secondary" [disabled]="busy()" (click)="test()">
+            @if (testing()) {
+              <app-spinner [size]="18" label="Testing the connection" />
+            }
+            Test connection
+          </button>
+          <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="save()">
+            @if (saving()) {
+              <app-spinner [size]="18" label="Saving the AI provider" />
+            }
+            Save
+          </button>
+        </div>
+      }
+    }
+  }
+</section>

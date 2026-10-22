@@ -58,6 +58,15 @@ export type ProductSource = (typeof PRODUCT_SOURCES)[number];
 export const IMAGE_ROLES = ['food', 'label'] as const;
 export type ImageRole = (typeof IMAGE_ROLES)[number];
 
+export const AI_PROVIDER_KINDS = ['openai', 'anthropic', 'gemini', 'openrouter', 'local', 'custom'] as const;
+export type AiProviderKind = (typeof AI_PROVIDER_KINDS)[number];
+
+export const AI_API_STYLES = ['responses', 'chat'] as const;
+export type AiApiStyle = (typeof AI_API_STYLES)[number];
+
+export const AI_PROVIDER_SOURCES = ['app', 'env', 'demo', 'none'] as const;
+export type AiProviderSource = (typeof AI_PROVIDER_SOURCES)[number];
+
 export const MEAL_TYPE_LABELS: Record<MealType, string> = {
   breakfast: 'Breakfast',
   lunch: 'Lunch',

@@ -4,6 +4,8 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import {
   type AdminOverviewResponse,
+  type AiConfigDto,
+  type AiProviderResponse,
   type AuthStatusResponse,
   type ProfileDto,
   type ProfileResponse,
@@ -14,6 +16,7 @@ import {
   computeBodyMetrics,
   computeTargets,
 } from '@food/shared';
+import { AiAvailability } from '../../core/ai-availability.service';
 import { ApiService } from '../../core/api.service';
 import { AUTH_REFRESH_INTERVAL_MS, AuthService } from '../../core/auth.service';
 import { DataEventsService } from '../../core/data-events.service';
@@ -147,6 +150,21 @@ const SESSIONS: SessionDto[] = [
 
 const MEMBER: UserDto = { id: 'u1', email: 'me@example.com', name: null, role: 'member' };
 
+const NO_PROVIDER: AiProviderResponse = {
+  source: 'none',
+  editable: true,
+  active: false,
+  voice: false,
+  keyUnreadable: false,
+  settings: null,
+  server: null,
+};
+
+function withAiProvider(provider: AiConfigDto['provider']): ProfileResponse {
+  const response = profileResponse(PROFILE);
+  return { ...response, ai: { ...response.ai, provider } };
+}
+
 function signedIn(user: UserDto): AuthStatusResponse {
   return { setupRequired: false, authenticated: true, user };
 }
@@ -182,6 +200,27 @@ function createApi() {
     changePassword: vi.fn(),
     hiddenFoods: vi.fn(async () => ({ names: ['khoury strawberry yogurt'] })),
     unhideFood: vi.fn(async () => ({ names: [] as string[] })),
+    adminAiProvider: vi.fn(async (): Promise<AiProviderResponse> => NO_PROVIDER),
+    adminSaveAiProvider: vi.fn(async (): Promise<AiProviderResponse> => ({
+      ...NO_PROVIDER,
+      source: 'app',
+      active: true,
+      settings: {
+        provider: 'anthropic',
+        baseUrl: null,
+        apiStyle: 'chat',
+        model: 'claude-sonnet-5-5',
+        preciseModel: 'claude-opus-5-5',
+        hasApiKey: true,
+        apiKeyLast4: '0000',
+        voiceEnabled: true,
+        transcribeBaseUrl: null,
+        transcribeModel: null,
+        hasTranscribeApiKey: false,
+        transcribeApiKeyLast4: null,
+        updatedAt: '2026-10-22T10:00:00.000Z',
+      },
+    })),
   };
 }
 
@@ -1103,6 +1142,53 @@ describe('SettingsPage', () => {
     expect(row.getAttribute('href')).toBe('/admin?tab=requests');
     expect(row.textContent).toContain('2 people are waiting for access');
     expect(row.textContent).toContain('2');
+  });
+
+  it('shows the AI provider card to admins only', async () => {
+    api.getProfile.mockResolvedValue(withAiProvider('unconfigured'));
+    await TestBed.inject(AuthService).load();
+    const member = await setup();
+    const memberAi = member.el.querySelector('#settings-ai')!;
+    expect(memberAi.querySelector('[data-testid="ai-provider-card"]')).toBeNull();
+    expect(memberAi.textContent).toContain("AI estimates aren't set up on this server.");
+    expect(api.adminAiProvider).not.toHaveBeenCalled();
+    member.fixture.destroy();
+
+    api.authStatus.mockResolvedValue(signedIn({ ...MEMBER, role: 'admin' }));
+    await TestBed.inject(AuthService).load();
+    const admin = await setup();
+    await admin.fixture.whenStable();
+    const adminAi = admin.el.querySelector('#settings-ai')!;
+    expect(adminAi.querySelector('[data-testid="ai-provider-card"]')).not.toBeNull();
+    expect(adminAi.textContent).toContain('choose a provider under AI provider below');
+    expect(api.adminAiProvider).toHaveBeenCalledTimes(1);
+  });
+
+  it('turns AI on for the app right after an admin saves a provider', async () => {
+    api.getProfile.mockResolvedValue(withAiProvider('unconfigured'));
+    api.authStatus.mockResolvedValue(signedIn({ ...MEMBER, role: 'admin' }));
+    await TestBed.inject(AuthService).load();
+    const { fixture, el, input } = await setup();
+    await fixture.whenStable();
+    const availability = TestBed.inject(AiAvailability);
+    expect(availability.enabled()).toBe(false);
+
+    const kind = el.querySelector<HTMLSelectElement>('#ai-provider-kind')!;
+    kind.value = 'anthropic';
+    kind.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+    input('ai-provider-key').value = 'sk-ant-test-0000';
+    input('ai-provider-key').dispatchEvent(new Event('input'));
+    api.getProfile.mockResolvedValue(withAiProvider('anthropic'));
+    buttonByText(el.querySelector('[data-testid="ai-provider-card"]')!, 'Save').click();
+    await fixture.whenStable();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await fixture.whenStable();
+
+    expect(api.adminSaveAiProvider).toHaveBeenCalledTimes(1);
+    expect(api.getProfile).toHaveBeenCalledTimes(2);
+    expect(availability.enabled()).toBe(true);
+    expect(el.querySelector('#settings-ai')?.textContent).toContain('Connected to Claude');
   });
 
   it('shows the admin row after a promotion without reloading the app', async () => {

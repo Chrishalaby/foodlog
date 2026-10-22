@@ -85,13 +85,13 @@ describe('describeAnalyzeError', () => {
 
   it('explains how to configure the API key to admins when AI is not configured', () => {
     const failure = describeAnalyzeError(
-      httpError(503, 'AI is not configured — set OPENAI_API_KEY'),
+      httpError(503, 'AI is not configured — an admin can add a provider in Settings → AI'),
       {
         admin: true,
       },
     );
     expect(failure).toMatchObject({ kind: 'not_configured', retryable: false });
-    expect(failure.message).toContain('OPENAI_API_KEY');
+    expect(failure.message).toContain('Settings → AI');
     expect(describeAnalyzeError(httpError(503))).toMatchObject({
       kind: 'ai_unavailable',
       retryable: true,
@@ -100,10 +100,10 @@ describe('describeAnalyzeError', () => {
 
   it('keeps server settings from members when AI is not configured', () => {
     const failure = describeAnalyzeError(
-      httpError(503, 'AI is not configured — set OPENAI_API_KEY'),
+      httpError(503, 'AI is not configured — an admin can add a provider in Settings → AI'),
     );
     expect(failure).toMatchObject({ kind: 'not_configured', retryable: false });
-    expect(failure.message).not.toContain('OPENAI_API_KEY');
+    expect(failure.message).not.toContain('Settings → AI');
     expect(failure.message).toContain('Ask your admin');
   });
 

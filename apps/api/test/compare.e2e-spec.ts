@@ -381,7 +381,7 @@ describe('compare menu limits and failures (e2e)', () => {
     try {
       const response = await scanMenu(agent, {}, [await jpeg()]).expect(503);
       expect((response.body as ApiError).message).toBe(
-        'AI is not configured — set OPENAI_API_KEY',
+        'AI is not configured — an admin can add a provider in Settings → AI',
       );
     } finally {
       await app.close();

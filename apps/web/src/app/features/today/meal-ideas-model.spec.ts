@@ -204,12 +204,15 @@ describe('describeIdeasError', () => {
   });
 
   it('says when AI is not set up, with the admin fix for admins', () => {
-    const err = httpError(503, 'AI is not configured — set OPENAI_API_KEY');
+    const err = httpError(
+      503,
+      'AI is not configured — an admin can add a provider in Settings → AI',
+    );
     expect(describeIdeasError(err, member)).toMatchObject({
       kind: 'not_configured',
       retryable: false,
     });
-    expect(describeIdeasError(err, { admin: true }).message).toContain('OPENAI_API_KEY');
+    expect(describeIdeasError(err, { admin: true }).message).toContain('Settings → AI');
   });
 
   it('passes on what the server says when the AI fails, and offers a retry', () => {

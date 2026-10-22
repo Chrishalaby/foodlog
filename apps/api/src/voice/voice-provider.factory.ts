@@ -1,5 +1,10 @@
 import { Logger } from '@nestjs/common';
+import type { RuntimeAiSettings } from '../ai/ai-runtime-settings.js';
 import { AiProviderError } from '../ai/providers/ai-provider-error.js';
+import {
+  KEYLESS_API_KEY,
+  OPENAI_BASE_URL,
+} from '../ai/providers/provider.factory.js';
 import type { AppConfig } from '../config/app-config.js';
 import {
   MOCK_VOICE_LATENCY_MS,
@@ -16,28 +21,33 @@ export class UnconfiguredVoiceProvider implements VoiceAiProvider {
 
   transcribe(): Promise<VoiceTranscribeResult> {
     return Promise.reject(
-      new AiProviderError('auth', 'OPENAI_API_KEY is not set', false),
+      new AiProviderError(
+        'auth',
+        'No transcription service is configured',
+        false,
+      ),
     );
   }
 }
 
-export function createVoiceProvider(config: AppConfig): VoiceAiProvider {
-  const { ai } = config;
+export function createVoiceProvider(
+  settings: RuntimeAiSettings,
+  config: AppConfig,
+): VoiceAiProvider {
+  const { ai, voice } = settings;
   if (ai.provider === 'mock') {
     return new MockVoiceProvider({
       latencyMs: config.nodeEnv === 'test' ? 0 : MOCK_VOICE_LATENCY_MS,
     });
   }
-  const apiKey = ai.transcribeApiKey ?? ai.apiKey;
-  if (!ai.voiceEnabled || !apiKey) {
+  if (ai.provider === 'unconfigured' || !voice.enabled) {
     return new UnconfiguredVoiceProvider();
   }
-  const baseURL = ai.transcribeBaseUrl ?? ai.baseUrl;
   const logger = new Logger(OpenAiVoiceProvider.name);
   return new OpenAiVoiceProvider({
-    apiKey,
-    timeoutMs: ai.timeoutMs,
-    ...(baseURL ? { baseURL } : {}),
+    apiKey: voice.apiKey ?? KEYLESS_API_KEY,
+    timeoutMs: config.ai.timeoutMs,
+    baseURL: voice.baseUrl ?? OPENAI_BASE_URL,
     onHintsRejected: (error) =>
       logger.warn(
         `Transcription vocabulary hints were rejected (${error.message}); retrying without them`,

@@ -1,7 +1,7 @@
 # FoodLog — architecture & contract
 
-Small multi-user (invite-only, owner/admin + members), mobile-first PWA: photograph food (or a nutrition label, or type a description), an OpenAI vision
-model returns structured nutrition estimates, the user reviews/edits, saves, and tracks daily/weekly nutrition.
+Small multi-user (invite-only, owner/admin + members), mobile-first PWA: photograph food (or a nutrition label, or type a description), a vision
+model (OpenAI, Claude or any OpenAI-compatible server) returns structured nutrition estimates, the user reviews/edits, saves, and tracks daily/weekly nutrition.
 
 ## Repository layout (npm workspaces)
 
@@ -10,7 +10,7 @@ package.json                 root scripts, workspaces: packages/*, apps/*
 docker-compose.yml           self-host stack (Postgres + app; `FOODLOG_IMAGE` picks a prebuilt image)
 .env                         dev env (git-ignored) — read by the API and by Prisma
 packages/shared              @food/shared — TS types (API contract), enums, nutrient math, date utils, target formulas
-apps/api                     @food/api — NestJS 12 (ESM), Prisma 7.10 + PostgreSQL 17, OpenAI SDK 7
+apps/api                     @food/api — NestJS 12 (ESM), Prisma 7.10 + PostgreSQL 17, OpenAI SDK 7, Anthropic SDK
 apps/web                     @food/web — Angular 22.2 (standalone, zoneless, OnPush default, signals), Tailwind 4, PWA
 deploy/notes-proxy           Caddy image that gives Notes its own address in front of the same service
 apps/api/catalog             the built-in food database file (`usda-foods.json.gz`), loaded on start
@@ -120,6 +120,10 @@ Every query must be scoped to the current user's id (`where: { userId }`) and re
 | POST | /api/admin/invites | `CreateInviteRequest` | `InviteLinkResponse` (201) | admin; "add people" |
 | POST | /api/admin/invites/:id/regenerate | — | `InviteLinkResponse` | admin; new link, old one revoked |
 | DELETE | /api/admin/invites/:id | — | 204 | admin; revoke |
+| GET | /api/admin/ai-provider | — | `AiProviderResponse` | admin; never contains a key, only `hasApiKey` + last 4; see AI provider setup |
+| PUT | /api/admin/ai-provider | `UpdateAiProviderRequest` | `AiProviderResponse` | admin; 409 when the environment sets AI, 403 in `DEMO_MODE` |
+| DELETE | /api/admin/ai-provider | — | `AiProviderResponse` | admin; forgets the saved provider and its keys |
+| POST | /api/admin/ai-provider/test | `UpdateAiProviderRequest` | `TestAiProviderResponse` | admin; one tiny structured request, nothing saved; 20/min |
 | GET | /api/drafts | — | `DraftDto[]` | own drafts, newest first |
 | POST | /api/drafts | multipart `CreateDraftFields` + `images` | `DraftDto` (201) | save for later (photos stored like analyze uploads) |
 | PUT | /api/drafts/:id | `UpdateDraftRequest` | `DraftDto` | |
@@ -585,20 +589,29 @@ Compare ranks options the user brings; meal ideas proposes them. One text-only A
 
 - `POST /api/analyze` (multipart). `mode`: `food_photo` and `nutrition_label` need an image unless
   `previousAnalysisId` is given (the previous analysis' photo is reused); `text` needs a non-empty description.
-- Provider selection: `AI_PROVIDER=openai` (needs `OPENAI_API_KEY`) or `mock` (deterministic fake results, zero cost,
-  used for development/tests). If `openai` is selected without a key → 503 `AI is not configured`, and the profile's
-  `ai.provider` is `unconfigured` (see AI is optional). `DEMO_MODE` forces `mock`.
+- Provider selection, resolved per request from `AiProviderSettingsService.snapshot()` (see AI provider setup):
+  `DEMO_MODE` → mock; `AI_PROVIDER=mock` → mock (deterministic fake results, zero cost, used for development/tests);
+  `OPENAI_API_KEY` set → the environment's OpenAI-compatible settings; else the provider saved in Settings → AI; else
+  unconfigured → 503 `AI is not configured — an admin can add a provider in Settings → AI`, and the profile's
+  `ai.provider` is `unconfigured` (see AI is optional).
 - Model: `precise=true` → `OPENAI_PRECISE_MODEL` (default `gpt-6-astra`); otherwise profile `aiModel` if set and
   known, else `OPENAI_MODEL` (default `gpt-5.6-sol`). Reasoning effort `OPENAI_REASONING_EFFORT` (default `low`).
   `detail`: request field, else profile `aiDetailFood` / `aiDetailLabel` (default `high`).
-- OpenAI Responses API, strict JSON-schema Structured Outputs (zod schema + `zodTextFormat`), `store: false`,
+- OpenAI: Responses API, strict JSON-schema Structured Outputs (zod schema + `zodTextFormat`), `store: false`,
   `maxRetries: 0` on the client, **exactly one app-level retry** for retryable failures, 90 s timeout,
   explicit prompt caching (`prompt_cache_options: { mode: 'explicit' }` + breakpoint on the static instructions) for
   `gpt-5.6*` / `gpt-6*` models only. No `temperature`.
 - The model returns per-item **grams + per-100 g nutrients**; the server computes item nutrients
   (`nutrientsFromPer100g` → `roundNutrients`), runs consistency checks (Atwater ±15 %/15 kcal, fiber/sugar > carbs,
   sat fat > fat, kJ-as-kcal auto-fix, impossible densities) producing `flags` and `warnings`, and sums totals.
-- Every OpenAI attempt (success or failure) writes an `AiUsage` row with tokens, reasoning tokens, cost (hardcoded
+- Claude (`ai/providers/anthropic-structured.ts`, `@anthropic-ai/sdk`): Messages API with the instructions as `system`,
+  images as base64 blocks before the text, and the same JSON schema as `output_config.format` (keywords Claude does
+  not support, such as `$schema`, `minimum` or `maxLength`, are dropped; the zod parse still checks everything).
+  Forced `tool_choice` is not used because Claude Sonnet 5.5 and Opus 5.5 reject it. `OPENAI_REASONING_EFFORT` maps to
+  `output_config.effort` for catalog Claude models only (`none`/`minimal` → `low`). Stop reasons `refusal` and
+  `max_tokens` map to the `refusal` and `incomplete` failure kinds; usage maps cache reads/writes and thinking tokens
+  onto `AiTokenUsage`. `maxRetries: 0` and the same single app-level retry.
+- Every attempt (success or failure, any provider) writes an `AiUsage` row with tokens, reasoning tokens, cost (hardcoded
   price map; unknown model → 0 and a logged warning), duration, error kind. Each analysis is persisted as an
   `Analysis` row (normalized `result`, `rawResponse`, photo, model, detail, precise, follow-up links).
 - Optional `AI_MONTHLY_BUDGET_USD`: when month-to-date cost ≥ budget → 429 `Monthly AI budget reached`.
@@ -627,12 +640,44 @@ Compare ranks options the user brings; meal ideas proposes them. One text-only A
   usage). A single meal keeps the whole description. Providers without `analyzeMeals` fall back to the single
   analysis. `API_LIMITS.descriptionMax` is 2000 so a dictated day fits.
 
+### AI provider setup (in the app)
+
+- One `AiProviderConfig` row (`id = 'default'`, enforced by a check constraint): `provider` (`AI_PROVIDER_KINDS`:
+  `openai`, `anthropic`, `gemini`, `openrouter`, `local`, `custom`), `baseUrl`, `apiStyle`, `model`, `preciseModel`,
+  `voiceEnabled`, `transcribeBaseUrl`, `transcribeModel`, the two keys sealed, their last 4 characters,
+  `updatedById`, timestamps.
+- Presets (`AI_PROVIDER_PRESETS` in `@food/shared`) give each provider its address, API style, key requirement,
+  default models and model suggestions. OpenAI, Claude and Gemini addresses are fixed; OpenRouter, local and custom
+  are editable; only custom chooses its API style. Gemini, OpenRouter and local use Chat Completions.
+- Keys: `SecretsService.seal/open` (`secrets/secret-box.ts`) use AES-256-GCM with a 12-byte random IV, the purpose as
+  additional data, and an HKDF-SHA256 key from `SECRETS_KEY` or, when that is empty, from a random `encryption_key`
+  `AppSecret`. Sealed values are `v1:<env|db>:<iv>:<tag>:<ciphertext>`. A key that no longer decrypts (for example
+  after `SECRETS_KEY` changed) counts as missing and `AiProviderResponse.keyUnreadable` is true. Keys are never
+  returned, logged or exported; a test-connection failure message has the key and any "API key provided: …" echo
+  replaced by `[hidden]`.
+- Saving: a key left out of the request keeps the saved one for the same provider and is dropped when the provider
+  changes; `null` removes it. A provider that needs a key, an address or models is refused with 400.
+- Precedence: `DEMO_MODE` → `source: 'demo'`, `AI_PROVIDER=mock` or `OPENAI_API_KEY` → `source: 'env'`; both make the
+  card read-only and PUT/DELETE/test answer 403 (demo) or 409 (env). Otherwise `source` is `app` or `none`.
+- Runtime: `AiProviderSettingsService` loads and decrypts the row on start-up and after every save or removal and
+  keeps the resolved `RuntimeAiSettings` in memory. `AiConfigService`, `RuntimeAiProvider` (behind `AI_PROVIDER`,
+  `MENU_AI_PROVIDER`, `MEAL_IDEAS_AI_PROVIDER`) and `RuntimeVoiceProvider` (behind `VOICE_AI_PROVIDER`) read that
+  snapshot on every call and rebuild their client only when it changes, so a save takes effect without a restart.
+- Catalog: OpenAI and Claude list their priced catalog models (`MODEL_CATALOG` entries carry a `vendor`); the other
+  providers list exactly their two configured models, like a custom endpoint.
+- Voice: OpenAI and custom share the AI address and key unless a transcription address or key is given. Claude,
+  Gemini, OpenRouter and local need a transcription address or key (a key alone means OpenAI's endpoint); otherwise
+  voice is reported off.
+- Web: Settings → AI shows the "AI provider" card (`sections/ai-provider-card.ts`) to admins only. After a save or
+  removal it notifies the `profile` topic, the profile reloads and `AiAvailability` follows without a page reload.
+
 ### AI is optional, and other providers
 
 - No key: `AiConfigDto.provider` is `unconfigured`. The web's `AiAvailability` (`core/ai-availability.service.ts`,
   from the profile's `ai`) turns AI off everywhere: the Log home leads with search, the food database, barcode and
   "Add manually"; the photo, label, voice, "my day", meal-idea, Compare AI options and the unknown-barcode "scan the
-  label" path are hidden; the shell's camera button opens search instead; Settings explains how to add a key. Tests
+  label" path are hidden; the shell's camera button opens search instead; Settings points admins at the AI provider
+  card. Tests
   use `core/testing/ai-off.ts`.
 - `OPENAI_BASE_URL` points the OpenAI SDK at any OpenAI-compatible server (Ollama, LM Studio, OpenRouter, Gemini).
   `AI_API_STYLE` = `responses` (default) or `chat`: `chat` sends the same schema-constrained request through Chat
@@ -640,8 +685,8 @@ Compare ranks options the user brings; meal ideas proposes them. One text-only A
   stripped, usage normalized) for servers without the Responses API. With a custom endpoint the selectable models are
   exactly `OPENAI_MODEL` and `OPENAI_PRECISE_MODEL` (`AiConfigDto.customEndpoint`), any name is accepted, prices are
   unknown so usage costs 0 (one warning per model), and budgets do not limit them.
-- Voice: `AiConfigDto.voice` is false when `VOICE_ENABLED=false` or no transcription key exists; the voice button
-  is then hidden. `TRANSCRIBE_BASE_URL` / `TRANSCRIBE_API_KEY` send dictation to a separate OpenAI-compatible
+- Voice: `AiConfigDto.voice` is false when voice is turned off or no transcription service is available; the voice
+  button is then hidden. `TRANSCRIBE_BASE_URL` / `TRANSCRIBE_API_KEY` send dictation to a separate OpenAI-compatible
   Whisper server (defaults: the AI endpoint and key).
 
 ### Voice dictation

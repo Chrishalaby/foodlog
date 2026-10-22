@@ -84,6 +84,7 @@ export interface AppSettings {
   databaseUrl: string;
   cookieSecure: boolean;
   jwtSecret: string | null;
+  secretsKey: string | null;
   setupCode: string | null;
   adminEmails: readonly string[];
   appUrl: string | null;
@@ -162,6 +163,7 @@ const envShape = z.object({
     .regex(/^postgres(ql)?:\/\//, 'must be a postgresql:// connection URL'),
   COOKIE_SECURE: z.enum(['true', 'false', 'auto']).default('auto'),
   JWT_SECRET: z.string().min(32, 'must be at least 32 characters').optional(),
+  SECRETS_KEY: z.string().min(32, 'must be at least 32 characters').optional(),
   SETUP_CODE: z.string().max(200).optional(),
   ADMIN_EMAILS: emailList.optional(),
   APP_URL: appUrl.optional(),
@@ -292,6 +294,7 @@ function toSettings(env: Env): AppSettings {
         ? isProduction
         : env.COOKIE_SECURE === 'true',
     jwtSecret: env.JWT_SECRET ?? null,
+    secretsKey: env.SECRETS_KEY ?? null,
     setupCode: env.SETUP_CODE ?? null,
     adminEmails: env.ADMIN_EMAILS ?? [],
     appUrl: env.APP_URL ?? null,

@@ -100,6 +100,25 @@ model AppSecret {
   createdAt DateTime @default(now()) @db.Timestamptz(3)
 }
 
+model AiProviderConfig {
+  id                     String   @id @default("default")
+  provider               String
+  baseUrl                String?
+  apiStyle               String
+  model                  String
+  preciseModel           String
+  apiKeySealed           String?
+  apiKeyLast4            String?
+  voiceEnabled           Boolean  @default(true)
+  transcribeBaseUrl      String?
+  transcribeModel        String?
+  transcribeApiKeySealed String?
+  transcribeApiKeyLast4  String?
+  updatedById            String?  @db.Uuid
+  createdAt              DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime @updatedAt @db.Timestamptz(3)
+}
+
 model User {
   id                 String          @id @default(uuid(7)) @db.Uuid
   email              String          @unique

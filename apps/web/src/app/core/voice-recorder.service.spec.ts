@@ -70,7 +70,9 @@ describe('voice error messages', () => {
       RATE_LIMIT_MESSAGE,
     );
     expect(
-      transcribeErrorMessage(httpError(503, 'AI is not configured — set OPENAI_API_KEY')),
+      transcribeErrorMessage(
+        httpError(503, 'AI is not configured — an admin can add a provider in Settings → AI'),
+      ),
     ).toBe(VOICE_NOT_CONFIGURED_MESSAGE);
     expect(
       transcribeErrorMessage(httpError(502, 'Could not reach OpenAI — please try again')),
@@ -268,7 +270,10 @@ describe('VoiceRecorderService', () => {
   it.each([
     [httpError(429, 'Your monthly AI budget is used up'), 'Your monthly AI budget is used up.'],
     [httpError(429, 'ThrottlerException: Too Many Requests'), RATE_LIMIT_MESSAGE],
-    [httpError(503, 'AI is not configured — set OPENAI_API_KEY'), VOICE_NOT_CONFIGURED_MESSAGE],
+    [
+      httpError(503, 'AI is not configured — an admin can add a provider in Settings → AI'),
+      VOICE_NOT_CONFIGURED_MESSAGE,
+    ],
     [httpError(0), VOICE_OFFLINE_MESSAGE],
   ])('shows a friendly message when transcription fails (%#)', async (failure, message) => {
     transcribe.mockRejectedValue(failure);

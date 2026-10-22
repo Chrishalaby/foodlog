@@ -97,7 +97,7 @@ function notConfigured(viewer: AnalyzeViewer): AnalyzeFailure {
         kind: 'not_configured',
         title: 'AI is not set up',
         message:
-          'The server has no OpenAI API key. Set OPENAI_API_KEY (or AI_PROVIDER=mock for testing) and restart the API. You can still log this meal manually.',
+          'No AI provider is set up yet. Add one in Settings → AI, under AI provider. You can still log this meal manually.',
         retryable: false,
       }
     : {

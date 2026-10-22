@@ -1323,7 +1323,7 @@ describe('analyze limits and failures (e2e)', () => {
         .send({ mode: 'text', description: 'apple' })
         .expect(503);
       expect((response.body as ApiError).message).toBe(
-        'AI is not configured — set OPENAI_API_KEY',
+        'AI is not configured — an admin can add a provider in Settings → AI',
       );
     } finally {
       await app.close();

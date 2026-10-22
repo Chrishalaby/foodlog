@@ -1,3 +1,8 @@
+import { storedProvider } from '../../test/support/ai-settings.js';
+import {
+  resolveRuntimeAiSettings,
+  type StoredAiProvider,
+} from '../ai/ai-runtime-settings.js';
 import { AppConfig } from '../config/app-config.js';
 import { type AiSettings, parseSettings } from '../config/settings.js';
 import { MOCK_TRANSCRIPT, MockVoiceProvider } from './mock-voice.provider.js';
@@ -6,7 +11,10 @@ import {
   createVoiceProvider,
   UnconfiguredVoiceProvider,
 } from './voice-provider.factory.js';
-import type { VoiceTranscribeRequest } from './voice-provider.js';
+import type {
+  VoiceAiProvider,
+  VoiceTranscribeRequest,
+} from './voice-provider.js';
 
 const REQUEST: VoiceTranscribeRequest = {
   model: 'gpt-transcribe',
@@ -45,23 +53,32 @@ describe('MockVoiceProvider', () => {
   });
 });
 
+function voiceFor(
+  ai: Partial<AiSettings>,
+  stored: StoredAiProvider | null = null,
+): VoiceAiProvider {
+  const appConfig = config(ai);
+  return createVoiceProvider(
+    resolveRuntimeAiSettings(appConfig, stored),
+    appConfig,
+  );
+}
+
 describe('createVoiceProvider', () => {
   it('uses the mock when AI_PROVIDER is mock', () => {
-    expect(
-      createVoiceProvider(config({ provider: 'mock', apiKey: 'sk-ignored' })),
-    ).toBeInstanceOf(MockVoiceProvider);
+    expect(voiceFor({ provider: 'mock', apiKey: 'sk-ignored' })).toBeInstanceOf(
+      MockVoiceProvider,
+    );
   });
 
   it('uses OpenAI when a key is configured', () => {
-    expect(
-      createVoiceProvider(config({ provider: 'openai', apiKey: 'sk-test' })),
-    ).toBeInstanceOf(OpenAiVoiceProvider);
+    expect(voiceFor({ provider: 'openai', apiKey: 'sk-test' })).toBeInstanceOf(
+      OpenAiVoiceProvider,
+    );
   });
 
-  it('rejects every call when OpenAI is selected without a key', async () => {
-    const provider = createVoiceProvider(
-      config({ provider: 'openai', apiKey: null }),
-    );
+  it('rejects every call when no provider is set up', async () => {
+    const provider = voiceFor({ provider: 'openai', apiKey: null });
 
     expect(provider).toBeInstanceOf(UnconfiguredVoiceProvider);
     await expect(provider.transcribe(REQUEST)).rejects.toMatchObject({
@@ -72,21 +89,33 @@ describe('createVoiceProvider', () => {
 
   it('stays off when voice is turned off, even with a key', () => {
     expect(
-      createVoiceProvider(
-        config({ provider: 'openai', apiKey: 'sk-test', voiceEnabled: false }),
-      ),
+      voiceFor({ provider: 'openai', apiKey: 'sk-test', voiceEnabled: false }),
     ).toBeInstanceOf(UnconfiguredVoiceProvider);
   });
 
   it('uses a separate transcription server and key when given', () => {
     expect(
-      createVoiceProvider(
-        config({
-          provider: 'openai',
-          apiKey: null,
-          transcribeApiKey: 'local',
-          transcribeBaseUrl: 'http://whisper.lan:8000/v1',
-        }),
+      voiceFor({
+        provider: 'openai',
+        apiKey: 'sk-test',
+        transcribeApiKey: 'local',
+        transcribeBaseUrl: 'http://whisper.lan:8000/v1',
+      }),
+    ).toBeInstanceOf(OpenAiVoiceProvider);
+  });
+
+  it('has no voice for Claude until a transcription service is added', () => {
+    const claude = storedProvider('anthropic', { apiKey: 'sk-ant-test-key' });
+    expect(voiceFor({ apiKey: null }, claude)).toBeInstanceOf(
+      UnconfiguredVoiceProvider,
+    );
+    expect(
+      voiceFor({ apiKey: null }, { ...claude, transcribeApiKey: 'sk-openai' }),
+    ).toBeInstanceOf(OpenAiVoiceProvider);
+    expect(
+      voiceFor(
+        { apiKey: null },
+        { ...claude, transcribeBaseUrl: 'http://whisper.lan:8000/v1' },
       ),
     ).toBeInstanceOf(OpenAiVoiceProvider);
   });

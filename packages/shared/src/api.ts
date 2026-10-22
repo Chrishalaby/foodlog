@@ -1,5 +1,8 @@
 import type {
   AccessRequestStatus,
+  AiApiStyle,
+  AiProviderKind,
+  AiProviderSource,
   AuthTokenType,
   ActivityLevel,
   AmountSource,
@@ -477,7 +480,7 @@ export interface AiModelOption {
 }
 
 export interface AiConfigDto {
-  provider: 'openai' | 'mock' | 'unconfigured';
+  provider: AiProviderKind | 'mock' | 'unconfigured';
   voice: boolean;
   customEndpoint: boolean;
   defaultModel: string;
@@ -875,6 +878,62 @@ export interface CreateInviteRequest {
 export interface InviteLinkResponse {
   invite: AdminInviteDto;
   url: string;
+}
+
+export interface AiProviderSettingsDto {
+  provider: AiProviderKind;
+  baseUrl: string | null;
+  apiStyle: AiApiStyle;
+  model: string;
+  preciseModel: string;
+  hasApiKey: boolean;
+  apiKeyLast4: string | null;
+  voiceEnabled: boolean;
+  transcribeBaseUrl: string | null;
+  transcribeModel: string | null;
+  hasTranscribeApiKey: boolean;
+  transcribeApiKeyLast4: string | null;
+  updatedAt: string;
+}
+
+export interface AiProviderServerDto {
+  provider: 'openai' | 'mock';
+  baseUrl: string | null;
+  apiStyle: AiApiStyle;
+  model: string;
+  preciseModel: string;
+}
+
+export interface AiProviderResponse {
+  source: AiProviderSource;
+  editable: boolean;
+  active: boolean;
+  voice: boolean;
+  keyUnreadable: boolean;
+  settings: AiProviderSettingsDto | null;
+  server: AiProviderServerDto | null;
+}
+
+export interface UpdateAiProviderRequest {
+  provider: AiProviderKind;
+  baseUrl?: string | null;
+  apiStyle?: AiApiStyle;
+  model: string;
+  preciseModel: string;
+  apiKey?: string | null;
+  voiceEnabled: boolean;
+  transcribeBaseUrl?: string | null;
+  transcribeModel?: string | null;
+  transcribeApiKey?: string | null;
+}
+
+export type TestAiProviderRequest = UpdateAiProviderRequest;
+
+export interface TestAiProviderResponse {
+  ok: boolean;
+  model: string | null;
+  latencyMs: number | null;
+  message: string;
 }
 
 export interface ProductDto {

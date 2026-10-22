@@ -18,7 +18,6 @@ import {
 } from '../ai/analysis-errors.js';
 import { AiProviderError } from '../ai/providers/ai-provider-error.js';
 import { callWithOneRetry } from '../ai/providers/structured-attempts.js';
-import { AppConfig } from '../config/app-config.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PRODUCT_ORDER } from '../products/product-data.js';
 import { USER_BUDGET_REACHED_MESSAGE } from '../usage/usage-budget.js';
@@ -49,7 +48,6 @@ export class VoiceService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly config: AppConfig,
     private readonly aiConfig: AiConfigService,
     private readonly usage: UsageService,
     private readonly recorder: AiUsageRecorder,
@@ -62,7 +60,7 @@ export class VoiceService {
   ): Promise<TranscribeResponse> {
     await this.assertAvailable(userId);
     const request: VoiceTranscribeRequest = {
-      model: this.config.ai.transcribeModel.trim(),
+      model: this.aiConfig.transcribeModel,
       audio,
       vocabulary: await this.loadVocabulary(userId),
       location: await this.loadLocation(userId),

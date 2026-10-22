@@ -1,6 +1,7 @@
 import {
   MEMBER_UNCONFIGURED_TEXT,
-  PROVIDER_BANNERS,
+  MOCK_BANNER,
+  UNCONFIGURED_BANNER,
   aiBudgetView,
   providerBanner,
 } from './ai-section';
@@ -61,21 +62,29 @@ describe('aiBudgetView', () => {
 });
 
 describe('providerBanner', () => {
-  it('tells an admin which server setting turns AI on', () => {
-    expect(providerBanner('unconfigured', true).text).toContain('OPENAI_API_KEY');
+  it('points an admin at the AI provider card instead of server settings', () => {
+    const banner = providerBanner('unconfigured', true);
+    expect(banner.text).toContain('AI provider below');
+    expect(banner.text).not.toContain('OPENAI_API_KEY');
   });
 
   it('never names server settings to a member and points to other ways to log', () => {
     const banner = providerBanner('unconfigured', false);
     expect(banner.text).toBe(MEMBER_UNCONFIGURED_TEXT);
-    expect(banner.text).not.toContain('OPENAI_API_KEY');
-    expect(banner.title).toBe(PROVIDER_BANNERS.unconfigured.title);
+    expect(banner.text).not.toContain('AI provider');
+    expect(banner.title).toBe(UNCONFIGURED_BANNER.title);
   });
 
-  it('shows the same connected and demo banners to everyone', () => {
-    for (const provider of ['openai', 'mock'] as const) {
-      expect(providerBanner(provider, false)).toEqual(PROVIDER_BANNERS[provider]);
-      expect(providerBanner(provider, true)).toEqual(PROVIDER_BANNERS[provider]);
-    }
+  it('names the connected provider for everyone', () => {
+    expect(providerBanner('anthropic', false).title).toBe('Connected to Claude');
+    expect(providerBanner('openai', true).title).toBe('Connected to OpenAI');
+    expect(providerBanner('openai', true, true).title).toBe('Connected to your AI server');
+    expect(providerBanner('local', false).title).toBe('Connected to your local AI server');
+    expect(providerBanner('gemini', false)).toEqual(providerBanner('gemini', true));
+  });
+
+  it('shows the same demo banner to everyone', () => {
+    expect(providerBanner('mock', false)).toEqual(MOCK_BANNER);
+    expect(providerBanner('mock', true)).toEqual(MOCK_BANNER);
   });
 });

@@ -8,6 +8,8 @@ import type { MealSplitOutput } from '../meal-split.schema.js';
 import type { AnalysisPromptInput } from '../prompt.js';
 
 export const AI_PROVIDER = Symbol('AI_PROVIDER');
+
+export type AiProviderName = 'openai' | 'anthropic' | 'mock';
 export const MENU_AI_PROVIDER = Symbol('MENU_AI_PROVIDER');
 export const MEAL_IDEAS_AI_PROVIDER = Symbol('MEAL_IDEAS_AI_PROVIDER');
 
@@ -59,22 +61,22 @@ export interface AiMealIdeasRequest {
 export type AiMealIdeasResult = AiStructuredResult<MealIdeasOutput>;
 
 export interface AiProvider {
-  readonly name: 'openai' | 'mock';
+  readonly name: AiProviderName;
   analyze(request: AiAnalyzeRequest): Promise<AiAnalyzeResult>;
 }
 
 export interface MealSplitAiProvider {
-  readonly name: 'openai' | 'mock';
+  readonly name: AiProviderName;
   analyzeMeals(request: AiAnalyzeRequest): Promise<AiMealSplitResult>;
 }
 
 export interface MenuAiProvider {
-  readonly name: 'openai' | 'mock';
+  readonly name: AiProviderName;
   extractMenu(request: AiMenuRequest): Promise<AiMenuResult>;
 }
 
 export interface MealIdeasAiProvider {
-  readonly name: 'openai' | 'mock';
+  readonly name: AiProviderName;
   suggestMeals(request: AiMealIdeasRequest): Promise<AiMealIdeasResult>;
 }
 

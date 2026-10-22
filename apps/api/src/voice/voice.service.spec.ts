@@ -4,7 +4,6 @@ import type { AiUsageRecorder } from '../ai/ai-usage.recorder.js';
 import { AiProviderError } from '../ai/providers/ai-provider-error.js';
 import { zeroUsage } from '../ai/providers/ai-provider.js';
 import type { StructuredAttemptRecord } from '../ai/providers/structured-attempts.js';
-import type { AppConfig } from '../config/app-config.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { UsageService } from '../usage/usage.service.js';
 import { MOCK_TRANSCRIPT, MockVoiceProvider } from './mock-voice.provider.js';
@@ -106,12 +105,10 @@ function harness(options: HarnessOptions = {}) {
       },
     },
   } as unknown as PrismaService;
-  const config = {
-    ai: { transcribeModel: options.model ?? 'gpt-transcribe' },
-  } as unknown as AppConfig;
   const aiConfig = {
     provider: options.aiProvider ?? 'openai',
     voiceEnabled: options.voiceEnabled ?? true,
+    transcribeModel: options.model ?? 'gpt-transcribe',
   } as unknown as AiConfigService;
   const usage = {
     isMonthlyBudgetReached: () =>
@@ -131,14 +128,7 @@ function harness(options: HarnessOptions = {}) {
   } as unknown as AiUsageRecorder;
   const provider =
     options.provider ?? new ScriptedProvider([result(' 2 eggs ', 30)]);
-  const service = new VoiceService(
-    prisma,
-    config,
-    aiConfig,
-    usage,
-    recorder,
-    provider,
-  );
+  const service = new VoiceService(prisma, aiConfig, usage, recorder, provider);
   return { service, recorded, productQueries, entryQueries, provider };
 }
 
@@ -230,7 +220,9 @@ describe('VoiceService', () => {
     const error = await failureOf(service.transcribe(USER_ID, AUDIO));
 
     expect(error.getStatus()).toBe(503);
-    expect(error.message).toBe('AI is not configured — set OPENAI_API_KEY');
+    expect(error.message).toBe(
+      'AI is not configured — an admin can add a provider in Settings → AI',
+    );
     expect((provider as ScriptedProvider).requests).toHaveLength(0);
     expect(recorded).toHaveLength(0);
   });

@@ -8,6 +8,7 @@ import {
   findModel,
   findTranscriptionModel,
   isSelectableModel,
+  selectableModels,
   serviceTierMultiplier,
   supportsTranscriptionKeywords,
   usesExplicitPromptCache,
@@ -20,6 +21,36 @@ describe('model catalog', () => {
     expect(findModel('gpt-6-sol')?.label).toBe('GPT-6 Sol');
     expect(isSelectableModel('gpt-5.4')).toBe(false);
     expect(isSelectableModel('gpt-6-astra')).toBe(true);
+  });
+
+  it('keeps each vendor to its own selectable models', () => {
+    expect(isSelectableModel('claude-sonnet-5-5')).toBe(false);
+    expect(isSelectableModel('claude-sonnet-5-5', 'anthropic')).toBe(true);
+    expect(isSelectableModel('gpt-6-astra', 'anthropic')).toBe(false);
+    expect(selectableModels('anthropic').map((entry) => entry.id)).toEqual([
+      'claude-sonnet-5-5',
+      'claude-opus-5-5',
+      'claude-haiku-5-5',
+    ]);
+  });
+
+  it('prices Claude usage with cache reads and writes', () => {
+    expect(
+      computeCostUsd('claude-sonnet-5-5', {
+        inputTokens: 3000,
+        cachedInputTokens: 1000,
+        cacheWriteTokens: 500,
+        outputTokens: 1000,
+      }),
+    ).toBeCloseTo((1500 * 2 + 1000 * 0.2 + 500 * 2.5 + 1000 * 10) / 1e6, 9);
+    expect(
+      computeCostUsd('claude-opus-5-5', {
+        inputTokens: 1_000_000,
+        cachedInputTokens: 0,
+        cacheWriteTokens: 0,
+        outputTokens: 1_000_000,
+      }),
+    ).toBe(24);
   });
 
   it('computes cost including cached and cache-write tokens', () => {

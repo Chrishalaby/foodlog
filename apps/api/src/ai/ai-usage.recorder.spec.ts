@@ -57,6 +57,25 @@ describe('attemptCostUsd', () => {
     expect(attemptCostUsd('mock', USAGE, null, noWarning)).toBe(0);
   });
 
+  it('prices Claude models from the catalog and ignores service tiers', () => {
+    expect(
+      attemptCostUsd('claude-sonnet-5-5', USAGE, null, noWarning),
+    ).toBeCloseTo((1600 * 2 + 1000 * 0.2 + 200 * 2.5 + 1500 * 10) / 1e6, 6);
+    expect(
+      attemptCostUsd('claude-opus-5-5', USAGE, 'priority', noWarning),
+    ).toBeCloseTo((1600 * 4 + 1000 * 0.2 + 200 * 5 + 1500 * 20) / 1e6, 6);
+  });
+
+  it('records Claude models without a known price as free and warns', () => {
+    const warnings: string[] = [];
+    expect(
+      attemptCostUsd('claude-sonnet-4-5', USAGE, null, (model) =>
+        warnings.push(model),
+      ),
+    ).toBe(0);
+    expect(warnings).toEqual(['claude-sonnet-4-5']);
+  });
+
   it('records unknown models as free and warns', () => {
     const warnings: string[] = [];
     expect(

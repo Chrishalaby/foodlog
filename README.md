@@ -2,7 +2,7 @@
 
 A mobile-first PWA for logging what you eat from a photo, invite-only, for you and the people you let in. Snap your plate (or a nutrition label, or just
 type what you ate), add an optional description such as *"2 patties ~150 g each, bun hollowed, 1 tbsp
-ketchup-mayo"*, and an OpenAI vision model returns a structured, per-item nutrition estimate. Review and edit it,
+ketchup-mayo"*, and a vision model (OpenAI, Claude, Gemini or one you run yourself) returns a structured, per-item nutrition estimate. Review and edit it,
 save it, and track your day, week and trends on a dashboard.
 
 - **Three input modes:** food photo (+ optional description), nutrition-label photo (you enter grams or servings
@@ -53,18 +53,19 @@ save it, and track your day, week and trends on a dashboard.
   - Other people **request access** from the login screen. You approve them in the **admin panel**, and they finish
     signing up on their own device, so no email service is needed. You can also invite people with a shareable link.
   - Admins manage people (roles, disable, reset link, sign out everywhere, delete) and set a **monthly AI budget per
-    person**, since all analyses run on the owner's OpenAI key.
+    person**, since all analyses run on the owner's AI key.
   - Admins see only per-person totals, never anyone's actual meals.
 - **Bring your history:** import a FoodLog backup (JSON or CSV), a Cronometer food log or biometrics export, a
   MyFitnessPal nutrition or measurement summary, or any CSV of weigh-ins (Settings → Your data → Import). Files are
   read on your device, and anything already in your log is skipped, so importing twice is safe.
 - **AI is optional:** without a key the app hides photo, label, voice and meal-idea estimates and leads with
-  search, the food database, barcodes and manual entry. Add a key later and everything turns on.
+  search, the food database, barcodes and manual entry. Add a provider later in **Settings → AI** (OpenAI, Claude,
+  Gemini, OpenRouter, or Ollama/LM Studio on your own machine) and everything turns on, with no restart.
 - **Installable PWA:** dark mode by default, camera button on every screen, CSV/JSON export.
 
 ## Self-host quick start
 
-Requirements: Docker with Compose. An OpenAI API key is optional: without one, FoodLog runs with search, the food
+Requirements: Docker with Compose. An AI key is optional: without one, FoodLog runs with search, the food
 database, barcodes and manual entry, and hides the AI estimates.
 
 ```bash
@@ -75,8 +76,7 @@ git clone https://github.com/Chrishalaby/foodlog.git && cd foodlog
 cp .env.example .env
 ```
 
-Put a strong `POSTGRES_PASSWORD` (for example from `openssl rand -hex 32`) and, if you want AI estimates, your
-`OPENAI_API_KEY` in `.env`, then:
+Put a strong `POSTGRES_PASSWORD` (for example from `openssl rand -hex 32`) in `.env`, then:
 
 ```bash
 docker compose up -d --build
@@ -87,6 +87,9 @@ docker compose logs app | grep -i "setup code"
 ```
 
 Open http://localhost:3000 and create the first (admin) account with that setup code.
+
+To turn on AI estimates, open **Settings → AI → AI provider**, pick a provider, paste its API key, press
+**Test connection**, then **Save**. See [AI providers](#ai-providers).
 
 - **Phone access:** the live barcode scanner and home-screen install need HTTPS. Put the app behind Caddy, Traefik or
   a Cloudflare Tunnel and set `APP_URL` to that address.
@@ -115,31 +118,60 @@ The project page lives in `site/` and is published to GitHub Pages by `.github/w
 source to "GitHub Actions"). The workflow fills in the repository link, and the demo button appears once the
 `DEMO_URL` repository variable points at a running demo.
 
-## Other AI providers
+## AI providers
 
-FoodLog talks to any server that implements the OpenAI API. Set `AI_API_STYLE=chat` for servers that only offer
-Chat Completions, and use a model that accepts images and JSON-schema output:
+As the admin, open **Settings → AI → AI provider**. Pick a provider, paste its key, check the models and press
+**Test connection** (one tiny request), then **Save**. AI turns on for everyone right away, without a restart.
+Members never see the key, and only you see this card.
 
-| Provider | `OPENAI_BASE_URL` | `OPENAI_API_KEY` | `OPENAI_MODEL` (example) |
-|---|---|---|---|
-| Ollama | `http://<host>:11434/v1` | any text, e.g. `ollama` | `qwen2.5vl:7b` or `gemma3:12b` |
-| LM Studio | `http://<host>:1234/v1` | any text | the model id LM Studio shows |
-| OpenRouter | `https://openrouter.ai/api/v1` | your OpenRouter key | `google/gemini-2.5-flash` |
-| Google Gemini | `https://generativelanguage.googleapis.com/v1beta/openai` | your Gemini key | `gemini-2.5-flash` |
+| Provider | What to enter | Default model / precise model |
+|---|---|---|
+| OpenAI | your OpenAI key | `gpt-5.6-sol` / `gpt-6-astra` |
+| Anthropic (Claude) | your Anthropic key | `claude-sonnet-5-5` / `claude-opus-5-5` |
+| Google Gemini | your Google AI Studio key | `gemini-3.8-flash` / `gemini-4-argon` |
+| OpenRouter | your OpenRouter key | `google/gemini-3.8-flash` / `anthropic/claude-opus-5.5` |
+| Ollama or LM Studio | the server address, no key | `qwen3-vl:8b` / `qwen3-vl:32b` |
+| Other OpenAI-compatible server | the address (ending in `/v1`), an optional key and the API style | your model ids |
 
-- Set `OPENAI_PRECISE_MODEL` too (the "precise re-check" model). Settings then lists exactly these two models.
-- FoodLog does not know these models' prices, so their usage is recorded as $0 and budgets do not limit them.
+- **Keys** are encrypted (AES-256-GCM) before they are stored and are never sent back to the browser; the card shows
+  only the last four characters. Set `SECRETS_KEY` to keep the encryption key out of the database; otherwise one is
+  generated and stored there. If you change `SECRETS_KEY` later, enter the keys again.
+- **Claude** uses the Anthropic Messages API directly, with structured JSON output. OpenAI and Claude models are
+  priced in `apps/api/src/ai/models.ts`; other providers' usage is recorded as $0, so budgets do not limit them.
+- **Voice dictation** needs a speech-to-text service. OpenAI keys include one. Claude, Gemini, OpenRouter and local
+  servers do not, so add an OpenAI key under "Transcription key", or the address of an OpenAI-compatible Whisper
+  server, or turn voice off.
+- **Ollama in Docker:** if FoodLog runs in Docker and Ollama on the same computer, use
+  `http://host.docker.internal:11434/v1` (on Linux add `extra_hosts: ["host.docker.internal:host-gateway"]` to the
+  app service) or the computer's network address. Use a model that accepts images and JSON-schema output.
 - Small local vision models are much less accurate at portions than the defaults; the food database and your own
   saved foods keep logging accurate either way.
-- Ollama and LM Studio have no speech-to-text endpoint: set `VOICE_ENABLED=false`, or point `TRANSCRIBE_BASE_URL`
-  (and `TRANSCRIBE_API_KEY`, `OPENAI_TRANSCRIBE_MODEL`) at an OpenAI-compatible Whisper server.
+
+### Setting the provider on the server instead
+
+The environment still works, and it wins: when `OPENAI_API_KEY` is set (or `AI_PROVIDER=mock`), the card shows
+"Set on the server" and cannot be edited. Remove those variables to manage the provider in the app.
+
+| Provider | `OPENAI_BASE_URL` | `OPENAI_API_KEY` | `AI_API_STYLE` | `OPENAI_MODEL` (example) |
+|---|---|---|---|---|
+| OpenAI | *(empty)* | your OpenAI key | `responses` | `gpt-5.6-sol` |
+| Ollama | `http://<host>:11434/v1` | any text, e.g. `ollama` | `chat` | `qwen3-vl:8b` |
+| LM Studio | `http://<host>:1234/v1` | any text | `chat` | the model id LM Studio shows |
+| OpenRouter | `https://openrouter.ai/api/v1` | your OpenRouter key | `chat` | `google/gemini-3.8-flash` |
+| Google Gemini | `https://generativelanguage.googleapis.com/v1beta/openai` | your Gemini key | `chat` | `gemini-3.8-flash` |
+
+- Set `OPENAI_PRECISE_MODEL` too (the "precise re-check" model). Settings then lists exactly these two models.
+- Claude is available in the app only.
+- For voice with Ollama or LM Studio, set `VOICE_ENABLED=false`, or point `TRANSCRIBE_BASE_URL` (and
+  `TRANSCRIBE_API_KEY`, `OPENAI_TRANSCRIBE_MODEL`) at an OpenAI-compatible Whisper server.
 
 ## What leaves your server
 
-- **To the AI endpoint** (OpenAI, or whatever `OPENAI_BASE_URL` points at): the photo you are logging (re-encoded,
+- **To the AI provider you chose** (in Settings → AI, or `OPENAI_BASE_URL`): the photo you are logging (re-encoded,
   with EXIF and GPS removed), your description, the local time and meal type, the location you set in Settings (if
   any) and the names of your saved foods. Meal ideas also send your goal, targets, what you have eaten today and your
-  usual foods. Requests are sent with `store: false`. Voice dictation sends the recording for transcription.
+  usual foods. Requests to OpenAI are sent with `store: false`. Voice dictation sends the recording for
+  transcription.
 - **To Open Food Facts:** the barcode you scanned, when it is not one of your own products.
 - **Nothing else.** No analytics, no telemetry, no account with anyone but your own server.
 
@@ -176,7 +208,8 @@ FoodLog is built around that finding:
 | `gpt-5.6-luna` / `gpt-6-luna` | Budget options (weaker at portions) | ~$0.001–0.002 |
 
 At 6 photos a day the default costs roughly **$7/month**. Switch models in **Settings → AI**, or set
-`OPENAI_MODEL` on the server. Prices are hardcoded in `apps/api/src/ai/models.ts`. Update them there if OpenAI changes them.
+`OPENAI_MODEL` on the server. Prices (OpenAI and Claude) are hardcoded in `apps/api/src/ai/models.ts`. Update them
+there if the providers change them.
 
 ## Stack
 
@@ -184,7 +217,7 @@ At 6 photos a day the default costs roughly **$7/month**. Switch models in **Set
 |---|---|
 | Web | Angular 22 (standalone, zoneless, signals, Signal Forms), Tailwind CSS 4, Angular service worker (PWA), ngx-echarts / ECharts 6 |
 | API | NestJS 12 (ESM), class-validator, `@nestjs/throttler`, cookie JWT auth (argon2id), sharp |
-| AI | OpenAI Responses API via `openai` SDK 7, strict JSON-schema Structured Outputs (zod) |
+| AI | OpenAI Responses or Chat Completions via `openai` SDK 7, Claude Messages API via `@anthropic-ai/sdk`, strict JSON-schema structured outputs (zod) |
 | Data | PostgreSQL 17 + Prisma 7.10 (`@prisma/adapter-pg`) |
 | Photos | Local disk or any S3-compatible bucket |
 | Shared | `@food/shared`: API types, nutrient math, date helpers, target formulas used by both apps |
@@ -227,7 +260,8 @@ Open http://localhost:4200. The dev server proxies `/api` to the API on http://l
 setup code: …`). After the first account exists, setup is closed for good.
 
 **AI without a key:** `AI_PROVIDER=mock` returns realistic simulated results at zero cost, so you can use the whole
-app offline. To use OpenAI, set `AI_PROVIDER=openai` and `OPENAI_API_KEY=sk-...` in `.env` and restart the API.
+app offline. To use a real model, remove `AI_PROVIDER=mock` from `.env`, restart the API and add a provider in
+Settings → AI (or set `OPENAI_API_KEY=sk-...` in `.env`).
 
 **Try the real model on one photo** (after `npm run build -w @food/api`):
 
@@ -266,13 +300,14 @@ npm run test:e2e
 | `NODE_ENV` | `development` | `production` enables secure cookies |
 | `COOKIE_SECURE` | `auto` | `true`/`false`/`auto` (auto = production). Set `false` only when serving plain HTTP on a non-localhost host |
 | `JWT_SECRET` | *(auto)* | Session signing secret (≥ 32 chars). If empty, one is generated once and stored in the database |
+| `SECRETS_KEY` | *(auto)* | Encrypts AI keys saved in Settings → AI (≥ 32 chars). If empty, one is generated once and stored in the database |
 | `SETUP_CODE` | *(auto)* | One-time code required to create the first (admin) account. If empty, a random one is printed in the log |
 | `ADMIN_EMAILS` | — | Comma-separated emails that are always admins (e.g. `admin@example.com`) |
 | `APP_URL` | *(request origin)* | Public URL used in invite/reset links, e.g. `https://foodlog.example.com` |
 | `AI_MEMBER_MONTHLY_BUDGET_USD` | `5` | Default monthly AI budget for non-admin members (overridable per person in the admin panel). Leave it out for $5; set it to an empty value or `unlimited` for no member limit |
-| `AI_PROVIDER` | `openai` | `openai` or `mock` |
-| `OPENAI_API_KEY` | — | Server-side only; never sent to the browser |
-| `OPENAI_BASE_URL` | *(OpenAI)* | Another OpenAI-compatible server; see [Other AI providers](#other-ai-providers) |
+| `AI_PROVIDER` | `openai` | `openai` or `mock`. `mock` takes over from the in-app provider |
+| `OPENAI_API_KEY` | — | Optional. When set, the server's settings take over from Settings → AI. Never sent to the browser |
+| `OPENAI_BASE_URL` | *(OpenAI)* | Another OpenAI-compatible server; see [AI providers](#ai-providers) |
 | `AI_API_STYLE` | `responses` | `responses` (OpenAI Responses API) or `chat` (Chat Completions, for Ollama, LM Studio, OpenRouter, Gemini…) |
 | `VOICE_ENABLED` | `true` | `false` hides voice dictation |
 | `TRANSCRIBE_BASE_URL`, `TRANSCRIBE_API_KEY` | *(same as AI)* | A separate OpenAI-compatible speech-to-text server for voice dictation |
@@ -304,11 +339,13 @@ cp .env.example .env
 
 Set these in `.env`:
 
-- `OPENAI_API_KEY`.
 - `APP_URL` (the public HTTPS URL, used in invite and reset links) and optionally `ADMIN_EMAILS`.
 - A strong, URL-safe `POSTGRES_PASSWORD` **before the first start**, e.g. from `openssl rand -hex 32`. It is also put
   into the app's `DATABASE_URL`, so avoid characters that need URL encoding.
-- Optionally `SETUP_CODE` and `JWT_SECRET` (e.g. from `openssl rand -base64 48`; one is generated when empty).
+- Optionally `SETUP_CODE`, `JWT_SECRET` and `SECRETS_KEY` (e.g. from `openssl rand -base64 48`; they are generated
+  when empty).
+
+Add the AI provider in Settings → AI after signing in, or set `OPENAI_API_KEY` here.
 
 Then:
 
@@ -336,10 +373,10 @@ The repo deploys as a single Docker service (API plus the web app) with a Railwa
 3. Set the service variables:
    - `DATABASE_URL=${{Postgres.DATABASE_URL}}`
    - `NODE_ENV=production`
-   - `AI_PROVIDER=openai`
-   - `OPENAI_API_KEY`
    - `ADMIN_EMAILS`, `APP_URL=https://<your domain>`, and optionally `AI_MONTHLY_BUDGET_USD` /
      `AI_MEMBER_MONTHLY_BUDGET_USD`
+   - optionally `SECRETS_KEY` (keeps the key that encrypts saved AI keys out of the database) and `OPENAI_API_KEY`
+     (or add the provider in Settings → AI once you have signed in)
 4. Choose photo storage:
    - **Cloudflare R2 (used by the live app):** create a bucket and an R2 API token with Object Read & Write on that
      bucket, then set `STORAGE_DRIVER=s3`, `S3_BUCKET`, `S3_REGION=auto`,

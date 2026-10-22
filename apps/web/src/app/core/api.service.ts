@@ -10,6 +10,7 @@ import type {
   AdminInviteDto,
   AdminOverviewResponse,
   AdminUserDto,
+  AiProviderResponse,
   AnalyzeRequestFields,
   AuthTokenInfoResponse,
   BarcodeLookupResponse,
@@ -51,6 +52,8 @@ import type {
   UpdateDraftRequest,
   UpdateFluidLogRequest,
   UpdateAdminUserRequest,
+  UpdateAiProviderRequest,
+  TestAiProviderResponse,
   UpdateMyFoodRequest,
   UpdateNoteRequest,
   UpsertProductRequest,
@@ -513,6 +516,22 @@ export class ApiService {
     return this.deleteVoid(`/admin/invites/${segment(id)}`);
   }
 
+  adminAiProvider(): Promise<AiProviderResponse> {
+    return this.get<AiProviderResponse>('/admin/ai-provider');
+  }
+
+  adminSaveAiProvider(body: UpdateAiProviderRequest): Promise<AiProviderResponse> {
+    return this.put<AiProviderResponse>('/admin/ai-provider', body);
+  }
+
+  adminRemoveAiProvider(): Promise<AiProviderResponse> {
+    return this.delete<AiProviderResponse>('/admin/ai-provider');
+  }
+
+  adminTestAiProvider(body: UpdateAiProviderRequest): Promise<TestAiProviderResponse> {
+    return this.post<TestAiProviderResponse>('/admin/ai-provider/test', body);
+  }
+
   lookupBarcode(code: string, signal?: AbortSignal): Promise<BarcodeLookupResponse> {
     return this.get<BarcodeLookupResponse>(`/products/barcode/${segment(code)}`, undefined, signal);
   }
@@ -587,6 +606,10 @@ export class ApiService {
 
   private async postVoid(path: string, body: unknown): Promise<void> {
     await this.send(this.http.post<unknown>(this.url(path), body));
+  }
+
+  private delete<T>(path: string): Promise<T> {
+    return this.send(this.http.delete<T>(this.url(path)));
   }
 
   private async deleteVoid(path: string): Promise<void> {
