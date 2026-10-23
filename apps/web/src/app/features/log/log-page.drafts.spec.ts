@@ -192,7 +192,11 @@ describe('LogPage drafts', () => {
         { provide: ConfirmService, useValue: confirm },
         {
           provide: AuthService,
-          useValue: { user: signal<UserDto | null>(ALICE), isAdmin: signal(false) },
+          useValue: {
+            user: signal<UserDto | null>(ALICE),
+            isAdmin: signal(false),
+            demo: signal(null),
+          },
         },
         { provide: NetworkService, useValue: { online } },
         { provide: OFFLINE_DRAFTS_BACKEND, useFactory: memoryDraftsBackend },

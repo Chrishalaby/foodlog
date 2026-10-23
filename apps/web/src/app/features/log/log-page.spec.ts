@@ -17,6 +17,7 @@ import {
   type SaveMyFoodRequest,
 } from '@food/shared';
 import { ApiService } from '../../core/api.service';
+import { AuthService } from '../../core/auth.service';
 import { CaptureService } from '../../core/capture.service';
 import { DataEventsService } from '../../core/data-events.service';
 import { todayLocalDate } from '../../core/time';
@@ -150,6 +151,7 @@ describe('LogPage', () => {
     getProfile: vi.fn(),
     renameFood: vi.fn(),
     createMyFood: vi.fn<(body: SaveMyFoodRequest) => Promise<MyFoodDto>>(),
+    authStatus: vi.fn(),
   };
   const confirm = { confirm: vi.fn<() => Promise<boolean>>() };
   let navigate: ReturnType<typeof vi.spyOn>;
@@ -199,6 +201,28 @@ describe('LogPage', () => {
     buttonWith(el, 'Analyze').click();
     await fixture.whenStable();
   }
+
+  it('says a demo AI result is a simulated example, not a reading of the photo', async () => {
+    api.authStatus.mockResolvedValue({
+      setupRequired: false,
+      authenticated: true,
+      user: { id: 'demo-user', email: 'demo@demo.invalid', name: null, role: 'member' },
+      demo: { enabled: true, expiresAt: '2026-10-24T09:00:00.000Z' },
+    });
+    await TestBed.inject(AuthService).ensureLoaded();
+    const { fixture, el } = await render();
+    await reachReview(fixture, el);
+    const note = el.querySelector('[data-demo-result]');
+    expect(note?.textContent).toContain('Simulated example');
+    expect(note?.textContent).toContain('never sends your photo');
+  });
+
+  it('shows no simulated-result note outside the demo', async () => {
+    const { fixture, el } = await render();
+    await reachReview(fixture, el);
+    expect(el.querySelector('h1')?.textContent).toContain('Review meal');
+    expect(el.querySelector('[data-demo-result]')).toBeNull();
+  });
 
   it('opens on the food search with quick capture actions', async () => {
     const { el } = await render();

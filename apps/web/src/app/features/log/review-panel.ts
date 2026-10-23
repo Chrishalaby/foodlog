@@ -1,5 +1,6 @@
 import { Component, computed, inject, output, signal } from '@angular/core';
 import { API_LIMITS, type MyFoodDto } from '@food/shared';
+import { AuthService } from '../../core/auth.service';
 import { CaptureService, type ImageCaptureSource } from '../../core/capture.service';
 import { Icon } from '../../shared/ui/icon';
 import { PhotoStrip } from '../../shared/ui/photo-strip';
@@ -53,6 +54,7 @@ export const ASSUMPTIONS_PREVIEW = 3;
 export class ReviewPanel {
   protected readonly store = inject(LogStore);
   private readonly capture = inject(CaptureService);
+  private readonly auth = inject(AuthService);
   private seedSeq = 0;
 
   readonly discard = output<void>();
@@ -103,6 +105,9 @@ export class ReviewPanel {
     return phase === 'saving' || phase === 'saved';
   });
   protected readonly result = this.store.result;
+  protected readonly demoResult = computed(
+    () => this.auth.demo()?.enabled === true && this.store.analysis() !== null,
+  );
   protected readonly warnings = computed(() => this.result()?.warnings ?? []);
   protected readonly assumptions = computed(() => this.result()?.assumptions ?? []);
   protected readonly visibleAssumptions = computed(() =>

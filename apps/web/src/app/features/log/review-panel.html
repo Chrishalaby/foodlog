@@ -72,6 +72,22 @@
     (photoOpen)="openPhoto()"
   >
     <div entryFormBeforeItems class="flex flex-col gap-3 empty:hidden">
+      @if (demoResult()) {
+        <section
+          class="rounded-card border border-accent/30 bg-accent/10 p-3.5"
+          aria-label="Simulated result"
+          data-demo-result
+        >
+          <p class="flex items-start gap-2 text-sm leading-snug text-fg/90">
+            <app-icon class="mt-0.5 shrink-0 text-accent" name="info" [size]="16" />
+            <span>
+              <span class="font-semibold text-fg">Simulated example.</span>
+              The demo never sends your photo or words to an AI, so this is a made-up meal, not what
+              you snapped. On your own FoodLog, your AI key gives real estimates.
+            </span>
+          </p>
+        </section>
+      }
       @if (warnings().length > 0) {
         <section class="rounded-card border border-warn/30 bg-warn/10 p-3.5" aria-label="Warnings">
           <ul class="flex flex-col gap-2 text-sm leading-snug text-fg/90">
